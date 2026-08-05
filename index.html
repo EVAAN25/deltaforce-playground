@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三角洲行动游乐场 · 粉丝同人小游戏</title>
+<meta name="description" content="非官方三角洲行动粉丝同人小游戏：改枪大师、猜枪械、枪械对决、火力排排坐，每日一题。">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <h1><a href="#/">三角洲行动<span class="accent">游乐场</span></a></h1>
+  <p class="tagline">DELTA FORCE FAN PLAYGROUND</p>
+</header>
+
+<main>
+  <!-- 首页：四玩法导航 -->
+  <section id="view-home" class="view">
+    <div class="home-grid">
+      <a class="home-card" href="#/smith">
+        <div class="hc-emoji">🔧</div>
+        <div class="hc-body">
+          <h2>改枪大师<span class="dot" id="dot-smith"></span></h2>
+          <p>改装台出题：给定部位与目标属性，从 4 件候选配件里挑出加成最高的那件，共 5 轮。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/guess">
+        <div class="hc-emoji">🎯</div>
+        <div class="hc-body">
+          <h2>猜枪械<span class="dot" id="dot-guess"></span></h2>
+          <p>Wordle 式七维比对：类型、口径、开火模式、伤害、射速、射程、弹容量，6 次机会逼近答案。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/duel">
+        <div class="hc-emoji">⚔️</div>
+        <div class="hc-body">
+          <h2>枪械对决<span class="dot" id="dot-duel"></span></h2>
+          <p>每日指定一项属性，右边这把枪的数值是更高还是更低？固定 10 轮，答错即结算。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/sort">
+        <div class="hc-emoji">📶</div>
+        <div class="hc-body">
+          <h2>火力排排坐<span class="dot" id="dot-sort"></span></h2>
+          <p>把 5 把枪按每日指定属性从高到低排好，3 次提交机会。</p>
+        </div>
+      </a>
+    </div>
+    <p class="home-note">每个玩法每天一道题（按本地日期，全站同题），也有不限次的练习模式。进度存在本机浏览器里。</p>
+  </section>
+
+  <!-- 玩法 1：改枪大师 -->
+  <section id="view-smith" class="view hidden">
+    <div class="game-head">
+      <h2>🔧 改枪大师</h2>
+      <div class="mode-tabs" data-game="smith">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="smithBanner"></p>
+
+    <div class="seg-bar" id="smithSegBar"></div>
+    <div class="smith-question" id="smithQuestion"></div>
+    <div class="smith-grid" id="smithGrid"></div>
+    <div class="smith-actions">
+      <button class="btn hidden" id="smithNextBtn">下一轮 ⏭</button>
+    </div>
+    <div id="smithResult" class="result hidden"></div>
+
+    <details class="legend">
+      <summary>规则说明</summary>
+      <ul>
+        <li>每轮给出配件部位（枪口 / 枪管 / 枪托……）与目标属性（后坐力控制 / 操控速度……），4 件候选配件里只有一件对该属性加成最高。</li>
+        <li>点选后立即揭示各候选的真实加成数值。全部判定使用官方图鉴的配件数值，共 5 轮。</li>
+        <li>每日挑战按本地日期出题，同一天所有人同一套题；进度存在本机浏览器里。</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- 玩法 2：猜枪械 -->
+  <section id="view-guess" class="view hidden">
+    <div class="game-head">
+      <h2>🎯 猜枪械</h2>
+      <div class="mode-tabs" data-game="guess">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="guessBanner"></p>
+
+    <div class="guess-bar">
+      <div class="input-wrap">
+        <input id="guessInput" type="text" placeholder="输入枪械名，如：M4A1"
+               autocomplete="off" autocapitalize="off" spellcheck="false">
+        <ul id="guessSuggest" class="suggest-list hidden"></ul>
+      </div>
+      <span class="tries-left" id="guessTries"></span>
+    </div>
+
+    <div class="table-scroll">
+      <div class="guess-table">
+        <div class="grid-head guess-grid">
+          <span class="c-name">枪械</span><span>类型</span><span>口径</span><span>开火模式</span>
+          <span>伤害</span><span>射速</span><span>射程</span><span>弹容量</span>
+        </div>
+        <div id="guessRows" class="rows"></div>
+      </div>
+    </div>
+
+    <div id="guessResult" class="result hidden"></div>
+
+    <details class="legend">
+      <summary>图例与规则</summary>
+      <ul>
+        <li>🟩 完全正确　🟥 不对　⬆️ / ⬇️ 用于数值维度（伤害 / 射速 / 射程 / 弹容量）：⬆️ 表示答案比你猜的<b>更高</b>，⬇️ 表示更低。</li>
+        <li>开火模式为集合比对：包含的单发 / 连发 / 全自动完全一致才算 🟩，与顺序无关。</li>
+        <li>题池为 47 把枪械（步枪 / 冲锋枪 / 精确射手步枪 / 轻机枪 / 手枪 / 霰弹枪 / 狙击步枪）；每日挑战按本地日期出题，同一天所有人同一题，共 6 次机会；进度存在本机浏览器里。</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- 玩法 3：枪械对决 -->
+  <section id="view-duel" class="view hidden">
+    <div class="game-head">
+      <h2>⚔️ 枪械对决</h2>
+      <div class="mode-tabs" data-game="duel">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="duelBanner"></p>
+
+    <p class="duel-stat" id="duelStat"></p>
+    <div class="pop-arena">
+      <div class="pop-card" id="duelLeft"></div>
+      <div class="pop-vs">VS</div>
+      <div class="pop-card" id="duelRight"></div>
+    </div>
+    <div class="pop-actions" id="duelActions">
+      <button class="btn" id="duelHigher">更高 ⬆️</button>
+      <button class="btn" id="duelLower">更低 ⬇️</button>
+    </div>
+    <p class="pop-streak" id="duelStreak"></p>
+    <div id="duelResult" class="result hidden"></div>
+  </section>
+
+  <!-- 玩法 4：火力排排坐 -->
+  <section id="view-sort" class="view hidden">
+    <div class="game-head">
+      <h2>📶 火力排排坐</h2>
+      <div class="mode-tabs" data-game="sort">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="sortBanner"></p>
+
+    <div id="sortList" class="tl-list"></div>
+    <div class="tl-actions">
+      <button class="btn" id="sortSubmit">提交排序</button>
+      <span class="tries-left" id="sortTries"></span>
+    </div>
+    <div id="sortAttempts" class="tl-attempts"></div>
+    <div id="sortResult" class="result hidden"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>非官方粉丝同人作品，与腾讯（Tencent）及琳琅天上工作室（Team Jade）无关。游戏素材版权归原厂商所有。</p>
+  <p>数据来源：GitHub 仓库 zhuba-Ahhh/df-api 与 jiansenc/DeltaForceData 整理的官方图鉴数据快照（约 2024-12，枪械 47 把 / 配件 392 件），图片来自官方图鉴 CDN；本站于 2026-08-05 拉取。</p>
+</footer>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="data/weapons.js"></script>
+<script src="data/attachments.js"></script>
+<script src="game.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+/* 三角洲行动游乐场 —— 深色军事风：墨黑底 + 战术绿 + 信号橙 */
+:root {
+  --bg: #14171c;
+  --bg-deep: #0f1216;
+  --card: #1d2129;
+  --card-hi: #252b35;
+  --ink: #e8e6df;
+  --ink-soft: #9aa3ad;
+  --olive: #8ba05e;
+  --olive-deep: #6d8048;
+  --orange: #e08a3c;
+  --orange-deep: #b5691f;
+  --line: #313844;
+  --green: #5fae63;
+  --green-bg: rgba(95, 174, 99, .15);
+  --red: #cf6a55;
+  --red-bg: rgba(207, 106, 85, .15);
+  --radius: 12px;
+  --radius-sm: 10px;
+  /* 统一阴影语言：平面卡 / 橙边卡 / 浮起 / 弹层 */
+  --shadow-card: 0 2px 0 rgba(0, 0, 0, .35);
+  --shadow-gold: 0 2px 0 var(--orange-deep);
+  --shadow-hover: 0 6px 16px rgba(0, 0, 0, .45), 0 4px 0 var(--orange);
+  --shadow-layer: 0 8px 24px rgba(0, 0, 0, .55);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 战术质感：细颗粒噪点 + 斜向织纹 + 顶部橙光 */
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(224, 138, 60, .12), transparent 55%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .012) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, .008) 0 2px, transparent 2px 8px);
+}
+
+/* 顶部 */
+.site-header { text-align: center; padding: 30px 16px 8px; }
+.site-header h1 { font-size: 32px; letter-spacing: 4px; }
+.site-header h1 a { color: var(--ink); text-decoration: none; }
+.site-header .accent {
+  color: var(--orange);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .5);
+}
+.tagline { color: var(--ink-soft); margin-top: 6px; font-size: 12px; letter-spacing: 6px; }
+.tagline::before, .tagline::after { content: "—"; color: var(--olive); margin: 0 8px; }
+
+main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
+.hidden { display: none !important; }
+
+/* ---------- 首页 ---------- */
+.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.home-card {
+  display: flex; gap: 12px; align-items: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 16px; text-decoration: none; color: var(--ink);
+  box-shadow: var(--shadow-card);
+  transition: transform .12s, box-shadow .12s, border-color .12s;
+}
+.home-card:hover { transform: translateY(-2px); border-color: var(--orange); box-shadow: var(--shadow-hover); }
+.hc-emoji {
+  font-size: 30px; width: 54px; height: 54px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-deep); border-radius: 12px; border: 2px solid var(--olive-deep);
+}
+.home-card h2 { font-size: 18px; margin-bottom: 4px; }
+.home-card p { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
+.dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  background: #3a4150; margin-left: 8px; vertical-align: 2px;
+}
+.dot.done { background: var(--green); box-shadow: 0 0 0 3px rgba(95, 174, 99, .25); }
+.home-note { margin-top: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+
+/* ---------- 游戏通用 ---------- */
+.game-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.game-head h2 { font-size: 21px; letter-spacing: 1px; }
+.mode-tabs { display: flex; gap: 6px; }
+.mode-tab {
+  border: 1px solid var(--line); background: var(--card); color: var(--ink-soft);
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; cursor: pointer;
+}
+.mode-tab.active { background: var(--bg-deep); color: var(--orange); border-color: var(--orange-deep); font-weight: 600; }
+.mode-banner { text-align: center; color: var(--ink-soft); font-size: 13px; margin: 12px 0 14px; }
+.mode-banner b { color: var(--orange); }
+
+button.btn {
+  border: none; border-radius: 10px; padding: 10px 20px; font-size: 15px; cursor: pointer;
+  background: var(--bg-deep); color: var(--orange); font-weight: 600;
+  border: 1px solid var(--orange-deep);
+  border-bottom: 3px solid var(--orange-deep);
+  transition: transform .08s, border-bottom-width .08s;
+}
+button.btn:active { transform: translateY(2px); border-bottom-width: 1px; }
+button.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid var(--olive-deep); border-bottom: 3px solid var(--olive-deep); }
+
+.tries-left { padding: 10px 4px; font-size: 14px; color: var(--ink-soft); white-space: nowrap; }
+.tries-left b { color: var(--orange); font-size: 18px; }
+
+/* 输入 + 自动补全 */
+.guess-bar { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; }
+.input-wrap { position: relative; flex: 1; }
+.guess-bar input, .input {
+  width: 100%; padding: 12px 14px; font-size: 16px;
+  border: 2px solid var(--line); border-radius: var(--radius);
+  background: var(--card); color: var(--ink); outline: none;
+  transition: border-color .15s;
+}
+.guess-bar input:focus, .input:focus { border-color: var(--orange); }
+.guess-bar input:disabled, .input:disabled { opacity: .5; }
+.suggest-list {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+  list-style: none; background: var(--card-hi); border: 1px solid var(--line);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-layer);
+  max-height: 300px; overflow-y: auto;
+}
+.suggest-list li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; cursor: pointer; }
+.suggest-list li.active, .suggest-list li:hover { background: var(--bg-deep); }
+.suggest-list img, .suggest-list .avatar-fallback { width: 48px; height: 24px; border-radius: 6px; object-fit: contain; }
+.suggest-list .s-name { font-size: 15px; }
+.suggest-list .s-meta { margin-left: auto; font-size: 12px; color: var(--ink-soft); }
+
+/* 枪械图与占位块（300×150 白底 PNG，contain 展示） */
+.gun-img {
+  width: 96px; height: 48px; object-fit: contain; display: block;
+  background: #fff; border-radius: 8px;
+}
+.gun-img.sm { width: 64px; height: 32px; border-radius: 6px; }
+.gun-img.lg { width: 180px; height: 90px; border-radius: 10px; }
+
+/* chips（已猜记录） */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip { padding: 4px 12px; border-radius: 999px; font-size: 13px; border: 1px solid; }
+.chip.wrong { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.chip.hit { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.chip.skip { background: var(--card-hi); border-color: var(--line); color: var(--ink-soft); }
+
+/* 结算卡 */
+.result {
+  margin-top: 18px; background: var(--card); border: 1px solid var(--orange-deep);
+  border-radius: var(--radius); padding: 18px; text-align: center;
+  box-shadow: var(--shadow-gold);
+}
+.result { animation: rise .25s ease both; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+.result .r-portrait { width: 220px; height: 110px; margin: 0 auto; }
+.result h2 { margin: 10px 0 4px; font-size: 21px; }
+.result .r-meta { color: var(--ink-soft); font-size: 13px; margin-bottom: 8px; }
+.result .r-quote {
+  font-size: 14px; color: var(--ink); background: var(--bg-deep);
+  border-left: 3px solid var(--olive); border-radius: 6px;
+  padding: 8px 12px; margin: 8px auto 10px; max-width: 480px; text-align: left;
+}
+.result .r-grade { font-size: 15px; margin-bottom: 4px; }
+.result .r-grade b { color: var(--orange); font-size: 20px; }
+.result .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+
+/* 图例 */
+.legend { margin-top: 20px; font-size: 13px; color: var(--ink-soft); }
+.legend summary { cursor: pointer; }
+.legend ul { padding: 8px 0 0 18px; display: flex; flex-direction: column; gap: 4px; line-height: 1.6; }
+
+/* ---------- 改枪大师 ---------- */
+.seg-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 12px; }
+.seg {
+  height: 30px; border-radius: 8px; border: 1px dashed var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--ink-soft); background: var(--card);
+  transition: all .2s;
+}
+.seg.on { background: var(--bg-deep); color: var(--orange); border: 1px solid var(--orange-deep); font-weight: 600; }
+.seg.hit { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+.seg.miss { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+.smith-question {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; text-align: center; font-size: 15px; line-height: 1.7;
+  box-shadow: var(--shadow-card);
+}
+.smith-question b { color: var(--orange); }
+.smith-question .q-slot { color: var(--olive); font-weight: 700; }
+.smith-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.smith-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px 10px; text-align: center; cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: transform .12s, border-color .12s;
+}
+.smith-card:hover { transform: translateY(-2px); border-color: var(--orange); }
+.smith-card .gun-img { margin: 0 auto 8px; width: 120px; height: 60px; }
+.smith-card .sc-name { font-size: 14px; font-weight: 600; line-height: 1.4; min-height: 2.8em; }
+.smith-card .sc-stat {
+  margin-top: 8px; font-size: 16px; font-weight: 800;
+  font-variant-numeric: tabular-nums; animation: pop .2s ease both;
+}
+.smith-card .sc-effects { margin-top: 6px; font-size: 11px; color: var(--ink-soft); line-height: 1.5; }
+.smith-card .sc-effects .pro { color: var(--green); }
+.smith-card .sc-effects .con { color: var(--red); }
+.smith-card.correct { border-color: var(--green); background: var(--green-bg); cursor: default; }
+.smith-card.correct .sc-stat { color: var(--green); }
+.smith-card.wrong { border-color: var(--red); background: var(--red-bg); cursor: default; }
+.smith-card.wrong .sc-stat { color: var(--red); }
+.smith-card.reveal { cursor: default; }
+.smith-card.reveal:not(.correct):not(.wrong) .sc-stat { color: var(--ink-soft); }
+.smith-actions { display: flex; justify-content: center; margin-top: 14px; }
+
+/* ---------- 猜枪械（七维比对表格） ---------- */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.guess-table { min-width: 680px; }
+.guess-grid { display: grid; grid-template-columns: 1.4fr repeat(7, 1fr); gap: 6px; align-items: center; }
+.grid-head { font-size: 12px; color: var(--ink-soft); margin: 14px 0 6px; text-align: center; }
+.grid-head .c-name { text-align: left; padding-left: 6px; }
+.rows { display: flex; flex-direction: column; gap: 6px; }
+.row .cell {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  min-height: 52px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  font-size: 13px; padding: 4px 2px; text-align: center; line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  animation: pop .2s ease both;
+}
+/* 逐格 stagger 入场（≤300ms） */
+.row .cell:nth-child(2) { animation-delay: .03s; }
+.row .cell:nth-child(3) { animation-delay: .06s; }
+.row .cell:nth-child(4) { animation-delay: .09s; }
+.row .cell:nth-child(5) { animation-delay: .12s; }
+.row .cell:nth-child(6) { animation-delay: .15s; }
+.row .cell:nth-child(7) { animation-delay: .18s; }
+.row .cell:nth-child(8) { animation-delay: .21s; }
+.row .cell .arrow { font-size: 15px; line-height: 1; }
+.row .cell.name {
+  flex-direction: row; gap: 8px; justify-content: flex-start; padding: 4px 8px; font-weight: 600;
+}
+.row .cell.name img { width: 48px; height: 24px; border-radius: 6px; object-fit: contain; background: #fff; }
+.cell.green { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.cell.red, .cell.up, .cell.down { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+
+/* ---------- 枪械对决 ---------- */
+.duel-stat {
+  text-align: center; font-size: 15px; margin-bottom: 12px; color: var(--ink-soft);
+}
+.duel-stat b { color: var(--orange); font-size: 18px; }
+.pop-arena { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: stretch; }
+.pop-vs { align-self: center; font-weight: 800; color: var(--orange); font-size: 18px; letter-spacing: 1px; }
+.pop-card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 10px; text-align: center; box-shadow: var(--shadow-card);
+}
+.pop-card .gun-img { margin: 0 auto 8px; width: 140px; height: 70px; }
+.pop-name { font-size: 16px; font-weight: 700; }
+.pop-type { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.pop-play { font-size: 24px; font-weight: 800; color: var(--orange); margin-top: 8px; font-variant-numeric: tabular-nums; }
+.pop-play small { font-size: 12px; color: var(--ink-soft); font-weight: 400; display: block; }
+.pop-play.unknown { color: var(--ink-soft); letter-spacing: 4px; }
+.pop-actions { display: flex; gap: 12px; justify-content: center; margin-top: 14px; }
+.pop-streak { text-align: center; margin-top: 10px; font-size: 14px; color: var(--ink-soft); }
+.pop-streak b { color: var(--orange); font-size: 18px; }
+
+/* ---------- 火力排排坐 ---------- */
+.tl-list { display: flex; flex-direction: column; gap: 8px; }
+.tl-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 14px; cursor: pointer; box-shadow: var(--shadow-card);
+  transition: all .12s;
+}
+.tl-card:hover { border-color: var(--orange); }
+.tl-card.sel { border-color: var(--orange); background: var(--card-hi); box-shadow: 0 2px 0 var(--orange-deep); }
+.tl-card .pos { font-size: 18px; font-weight: 800; color: var(--orange); width: 24px; text-align: center; }
+.tl-card .tname { font-size: 16px; font-weight: 600; }
+.tl-card .ttype { font-size: 12px; color: var(--ink-soft); margin-left: 6px; }
+.tl-card .tdate { margin-left: auto; font-size: 14px; color: var(--orange); font-variant-numeric: tabular-nums; font-weight: 700; }
+.tl-card.done { cursor: default; }
+.tl-actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.tl-attempts { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.tl-marks { font-size: 18px; letter-spacing: 4px; text-align: center; }
+
+/* ---------- 页脚 / 提示条 ---------- */
+.site-footer {
+  text-align: center; color: var(--ink-soft); font-size: 12px; line-height: 1.8;
+  padding: 18px 16px 28px; border-top: 1px solid var(--line); width: 100%; max-width: 720px;
+}
+/* toast：顶部滑入，2s 后由 JS 隐藏 */
+.toast {
+  position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
+  background: var(--bg-deep); color: var(--orange); padding: 10px 20px; border-radius: 999px;
+  font-size: 14px; z-index: 50; box-shadow: var(--shadow-layer);
+  border: 1px solid var(--orange-deep);
+  animation: toast-in .25s ease both;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -12px); } }
+@keyframes pop { from { opacity: 0; transform: translateY(6px); } }
+.shake { animation: shake .3s; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+/* 动效收口：系统要求减少动态时全部关闭 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 560px) {
+  .site-header h1 { font-size: 25px; }
+  .home-grid { grid-template-columns: 1fr; }
+  .guess-bar { flex-wrap: wrap; }
+  .guess-bar .input-wrap { flex: 1 1 100%; }
+  .smith-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .smith-card .sc-name { font-size: 13px; }
+  .pop-card { padding: 12px 6px; }
+  .pop-card .gun-img { width: 100px; height: 50px; }
+  .pop-name { font-size: 14px; }
+  .pop-play { font-size: 19px; }
+  .tl-card { padding: 8px 10px; gap: 8px; }
+  .tl-card .tname { font-size: 14px; }
+}
