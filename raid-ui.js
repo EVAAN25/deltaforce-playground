@@ -102,7 +102,34 @@
       const c = ac(); if (!c) return;
       blip(520, c.currentTime, 0.06, "square", 0.09);
     }
-    return { rustleStart, rustleStop, ding, pickup };
+    // 撤离成功 BGM：按评级给不同情感
+    function fanfare(g) {
+      const c = ac(); if (!c) return;
+      const t = c.currentTime;
+      if (g === "SS" || g === "S") { // 吃撑了：凯旋大调琶音 + 长尾高音
+        [[523.25, 0.13], [659.25, 0.13], [784, 0.13], [1046.5, 0.42]].forEach(([f, d], i) => blip(f, t + i * 0.12, d, "sine", 0.2));
+        blip(1318.5, t + 0.48, 0.5, "sine", 0.14);
+      } else if (g === "A" || g === "B") { // 吃得还行：轻快三音上扬
+        [[523.25, 0.12], [659.25, 0.12], [784, 0.3]].forEach(([f, d], i) => blip(f, t + i * 0.12, d, "sine", 0.17));
+      } else { // 白跑一趟：平淡两音，有点丧
+        blip(392, t, 0.18, "sine", 0.14); blip(329.6, t + 0.2, 0.4, "sine", 0.12);
+      }
+    }
+    // 被抓：刺耳下行 + 低频重击
+    function sting() {
+      const c = ac(); if (!c) return;
+      const t = c.currentTime;
+      blip(220, t, 0.16, "sawtooth", 0.2);
+      blip(155.6, t + 0.14, 0.4, "sawtooth", 0.2);
+      blip(82.4, t + 0.3, 0.5, "sine", 0.24);
+    }
+    // 迷失：阴郁下行三音
+    function lost() {
+      const c = ac(); if (!c) return;
+      const t = c.currentTime;
+      blip(440, t, 0.16, "sine", 0.15); blip(349.2, t + 0.18, 0.16, "sine", 0.14); blip(261.6, t + 0.36, 0.45, "sine", 0.13);
+    }
+    return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost };
   })();
 
   // ---------- 状态 ----------
@@ -138,7 +165,7 @@
       bagMain: DFR.makeBag(6, 4),
       bagSafe: DFR.makeBag(2, 2),
       status: "playing", outcome: null,
-      extracting: 0, extractAcc: 0, extractPaused: false, searched: 0,
+      extracting: 0, searched: 0,
       story: DFR.RAID_LINES.intro[Math.floor(introRng() * DFR.RAID_LINES.intro.length)],
     };
   }
@@ -272,10 +299,7 @@
       if (step) {
         run.px = step.x; run.py = step.y;
         run.nextStep = now + DFR.PLAYER_STEP_MS;
-        if (run.extracting) { // 移动取消引导：进度清零重来
-          run.extracting = 0; run.extractAcc = 0; run.extractPaused = false;
-          updateExtractBar();
-        }
+        if (run.extracting) { run.extracting = 0; updateExtractBar(); } // 移动取消引导
         onEnterTile();
         detect();
         // 点容器寻路到位后自动开搜
@@ -321,7 +345,7 @@
     const run = Raid.run;
     const onExtract = run.map.extracts.some((e) => e.x === run.px && e.y === run.py);
     const adj = adjacentContainer();
-    if (onExtract) setTip(`到撤离点了！按 <b>E</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，被看见会暂停、走动会取消）`);
+    if (onExtract) setTip(`到撤离点了！按 <b>E</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，期间不能走动，被看见＝被抓）`);
     else if (adj) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>E</b> 开吃`);
     else setTip(TIP_DEFAULT);
   }
@@ -402,8 +426,6 @@
     if (onExtract) {
       if (!run.extracting) {
         run.extracting = performance.now();
-        run.extractAcc = 0;
-        run.extractPaused = false;
         run.queue = [];
         updateExtractBar();
         DF_APP.toast("撤离引导开始，别动！");
@@ -414,23 +436,9 @@
     if (c) openSearch(c);
   }
 
-  // 巡逻队"看见"玩家（距离内 + 无遮挡）→ 引导暂停，进度保留；走远后自动继续
   function checkExtract(now) {
     const run = Raid.run;
-    const threat = run.patrols.some((p) =>
-      Math.hypot(run.px - p.x, run.py - p.y) <= DFR.EXTRACT_INTERRUPT_DIST &&
-      DFR.losClear(run.solid, p.x, p.y, run.px, run.py));
-    if (threat) {
-      if (!run.extractPaused) {
-        run.extractAcc += now - run.extracting;
-        run.extractPaused = true;
-        DF_APP.toast(DFR.RAID_LINES.interrupt);
-      }
-      updateExtractBar();
-      return;
-    }
-    if (run.extractPaused) { run.extractPaused = false; run.extracting = now; }
-    if (run.extractAcc + (now - run.extracting) >= run.map.cfg.extractMs) finish("extracted");
+    if (now - run.extracting >= run.map.cfg.extractMs) finish("extracted");
   }
 
   function updateExtractBar() {
@@ -438,10 +446,7 @@
     const bar = $("#raidExtractBar");
     if (!run || !run.extracting) { bar.classList.add("hidden"); return; }
     bar.classList.remove("hidden");
-    bar.classList.toggle("paused", run.extractPaused);
-    bar.querySelector(".re-text").textContent = run.extractPaused ? "猛攻队逼近——引导暂停（进度保留）" : "撤离引导中……";
-    const done = run.extractAcc + (run.extractPaused ? 0 : performance.now() - run.extracting);
-    const pct = Math.min(100, done / run.map.cfg.extractMs * 100);
+    const pct = Math.min(100, (performance.now() - run.extracting) / run.map.cfg.extractMs * 100);
     $("#raidExtractFill").style.width = pct + "%";
   }
 
@@ -500,9 +505,8 @@
   // ---------- 搜索浮层（官方形态：剪影全见 → 逐件点击鉴定） ----------
   function openSearch(c) {
     const run = Raid.run;
-    if (!c.drops) { // 局种子 + 容器坐标 → 掉落与搜索顺序无关，每日图全场确定
-      const drng = DFG.mulberry32(DFG.hash32(`df-raid-drop:${run.seed}:${c.cid}:${c.x},${c.y}`));
-      c.drops = DFR.rollContainer(drng, c, LOOT);
+    if (!c.drops) { // 开箱现场随机：内容与布局每开都随机，只有爆率固定
+      c.drops = DFR.rollContainer(Math.random, c, LOOT);
     }
     const ov = { c, searching: null, auto: false, done: false, cancelled: false, value: 0, staging: [] };
     Raid.overlay = ov;
@@ -680,6 +684,14 @@
     const kept = (outcome === "extracted" ? run.bagMain.items.concat(run.bagSafe.items) : run.bagSafe.items)
       .map((e) => e.item);
 
+    // 结局音效与画面反馈
+    if (outcome === "extracted") Sfx.fanfare(DFR.raidGrade(value).g);
+    else if (outcome === "caught") {
+      Sfx.sting();
+      const st = document.querySelector(".raid-stage");
+      if (st) { st.classList.remove("death"); void st.offsetWidth; st.classList.add("death"); }
+    } else Sfx.lost();
+
     // 图鉴收集（每日 / 练习都记）
     const coll = DF_APP.loadJSON("df_raid_collection", {});
     kept.forEach((it) => { coll[it.id] = (coll[it.id] || 0) + 1; });
@@ -792,7 +804,7 @@
     cv.width = run.map.w * TS;
     cv.height = run.map.h * TS;
     $("#raidBanner").innerHTML = run.mode === "daily"
-      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图同掉落 · 倒计时 ${run.map.cfg.seconds} 秒`
+      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图 · 掉落看脸 · 倒计时 ${run.map.cfg.seconds} 秒`
       : run.mode === "levels"
         ? `第 ${run.level + 1} 关 · <b>${DFR.LEVELS[run.level].name}</b> · ${DFR.LEVELS[run.level].desc} · 固定地图 · 倒计时 ${run.map.cfg.seconds} 秒`
         : `练习模式 · 随机地图（${run.practiceName}规格）· 倒计时 ${run.map.cfg.seconds} 秒 · 不计入每日成绩`;

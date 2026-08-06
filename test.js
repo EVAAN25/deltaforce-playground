@@ -486,16 +486,16 @@ ok("鼠鼠摸金：四关地图生成合法（尺寸/难度参数生效、巡逻
   });
 });
 
-ok("鼠鼠摸金：每日种子确定性（同种子同图同掉落）", () => {
+ok("鼠鼠摸金：每日种子确定性（同种子同图，掉落开箱随机）", () => {
   const seed = DFR.dailySeed("2026-08-05");
   const m1 = DFR.generateRaid(seed, DF_LOOT);
   const m2 = DFR.generateRaid(seed, DF_LOOT);
   assert.strictEqual(JSON.stringify(m1), JSON.stringify(m2), "同种子地图不同");
-  // 容器掉落与搜索顺序无关：只由局种子 + 容器身份决定
+  // rollContainer 本身仍是确定性函数（同一 rng 序列同结果），游戏内则以 Math.random 现场开箱
   const c = m1.containers[0];
-  const d1 = DFR.rollContainer(DFG.mulberry32(DFG.hash32(`df-raid-drop:${seed}:${c.cid}:${c.x},${c.y}`)), c, DF_LOOT);
-  const d2 = DFR.rollContainer(DFG.mulberry32(DFG.hash32(`df-raid-drop:${seed}:${c.cid}:${c.x},${c.y}`)), c, DF_LOOT);
-  assert.strictEqual(JSON.stringify(d1.map((d) => d.item.id)), JSON.stringify(d2.map((d) => d.item.id)), "同种子掉落不同");
+  const d1 = DFR.rollContainer(DFG.mulberry32(42), c, DF_LOOT);
+  const d2 = DFR.rollContainer(DFG.mulberry32(42), c, DF_LOOT);
+  assert.strictEqual(JSON.stringify(d1.map((d) => d.item.id)), JSON.stringify(d2.map((d) => d.item.id)), "rollContainer 不确定性");
   // 不同日期种子不同
   assert.notStrictEqual(DFR.dailySeed("2026-08-05"), DFR.dailySeed("2026-08-06"));
 });

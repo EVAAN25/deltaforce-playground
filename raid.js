@@ -18,7 +18,6 @@
   const MAP_H = 16;
   const RAID_SECONDS = 240;      // 局内倒计时
   const EXTRACT_MS = 5000;       // 撤离引导时长
-  const EXTRACT_INTERRUPT_DIST = 5; // 巡逻队在此距离内且看得见玩家时，引导暂停（进度保留）
   const PATROL_STEP_MS = 550;    // 巡逻队走一格的间隔（UI 用）
   const PLAYER_STEP_MS = 140;    // 玩家走一格的间隔（UI 用）
 
@@ -66,7 +65,6 @@
     caught: "你被猛攻队一脚踢死了！主背包撒了一地，只保住了安全箱……",
     lost: "倒计时归零，鼠鼠迷失在了禁区里……",
     extracted: "肥肥撤离！这波不亏，下波更肥。",
-    interrupt: "猛攻队看过来了，引导暂停！进度保留，等它走远自动继续。",
     gold: "出金了！！",
     red: "大红！！鼠鼠我呀，要发财了！",
   };
@@ -350,9 +348,12 @@
       const grade = weightedGrade(weights, rng);
       const pool = loot.items.filter((it) => it.grade === grade && it.value != null && fitsPossible(it, cont.w, cont.h));
       if (!pool.length) continue;
-      const item = pool[Math.floor(rng() * pool.length)];
-      const pos = packFirstFit(occ, cont.w, cont.h, item.len, item.wid, true);
-      if (pos) placed.push({ item, x: pos.x, y: pos.y, w: pos.w, h: pos.h });
+      // 同品质重试 3 次：大件摆不下会稀释高品质占比，多抽几件同品质的再放弃
+      for (let t = 0; t < 3; t++) {
+        const item = pool[Math.floor(rng() * pool.length)];
+        const pos = packFirstFit(occ, cont.w, cont.h, item.len, item.wid, true);
+        if (pos) { placed.push({ item, x: pos.x, y: pos.y, w: pos.w, h: pos.h }); break; }
+      }
     }
     if (!placed.length) { // 极端保底：塞一件 1 格灰货
       const pool = loot.items.filter((it) => it.cells === 1 && it.value != null);
@@ -407,7 +408,7 @@
   }
 
   return {
-    MAP_W, MAP_H, RAID_SECONDS, EXTRACT_MS, EXTRACT_INTERRUPT_DIST,
+    MAP_W, MAP_H, RAID_SECONDS, EXTRACT_MS,
     PATROL_STEP_MS, PLAYER_STEP_MS,
     REVEAL_SEC, BIG_CELLS, BIG_PAUSE_MS, MEME_TEXT, RAID_GRADES, RAID_LINES,
     LEVELS, DEFAULT_CFG,

@@ -373,8 +373,15 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   position: relative; display: flex; align-items: center; justify-content: center;
   height: 100%; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
-.raid-extract.paused { border-color: var(--g6); animation: re-paused .5s ease-in-out infinite alternate; }
-@keyframes re-paused { from { box-shadow: var(--shadow-layer); } to { box-shadow: 0 0 18px 3px rgba(208, 75, 58, .6); } }
+/* 被抓：红闪 + 震屏 */
+.raid-stage.death { animation: deathflash .7s ease; }
+@keyframes deathflash {
+  0% { box-shadow: none; transform: translateX(0); }
+  20% { box-shadow: inset 0 0 60px 18px rgba(208, 75, 58, .55); transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); box-shadow: inset 0 0 60px 18px rgba(208, 75, 58, .35); }
+  100% { box-shadow: none; transform: translateX(0); }
+}
 .raid-tip { text-align: center; font-size: 13px; color: var(--ink-soft); margin-top: 10px; min-height: 1.6em; }
 .raid-tip b { color: var(--orange); }
 .raid-story {
