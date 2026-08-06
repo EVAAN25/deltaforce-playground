@@ -23,8 +23,8 @@ const accById = {};
 DF_ACC.forEach((a) => { accById[a.id] = a; });
 
 // ---------- 数据完整性 ----------
-ok("数据：weapons 47 把、id 唯一、数值字段齐全", () => {
-  assert.strictEqual(DF_WEAPONS.length, 47);
+ok("数据：weapons 50 把、id 唯一、数值字段齐全", () => {
+  assert.strictEqual(DF_WEAPONS.length, 50);
   const ids = new Set();
   const TYPES = ["步枪", "冲锋枪", "精确射手步枪", "轻机枪", "手枪", "霰弹枪", "狙击步枪"];
   for (const w of DF_WEAPONS) {
@@ -33,7 +33,7 @@ ok("数据：weapons 47 把、id 唯一、数值字段齐全", () => {
       assert.strictEqual(typeof w[k], "number", `${w.name} 缺 ${k}`);
     }
     assert(w.caliber && w.fireModes.length > 0, "口径/开火模式 " + w.name);
-    assert(w.desc && w.img, "desc/img " + w.name);
+    assert(typeof w.desc === "string" && w.img, "desc/img " + w.name); // gtidb 新增枪暂无官方图鉴描述，desc 可为空串
     assert(!ids.has(w.id)); ids.add(w.id);
   }
 });
@@ -158,10 +158,10 @@ ok("改枪：判定、评级、分享卡格式（不含配件名）", () => {
 });
 
 // ---------- 玩法 2：猜枪械 ----------
-ok("猜枪：题池 47 把、名字唯一", () => {
-  assert.strictEqual(GPOOL_FOR_TEST.length, 47);
+ok("猜枪：题池 50 把、名字唯一", () => {
+  assert.strictEqual(GPOOL_FOR_TEST.length, 50);
   const names = new Set(GPOOL_FOR_TEST.map((w) => w.name));
-  assert.strictEqual(names.size, 47, "存在重名枪械");
+  assert.strictEqual(names.size, 50, "存在重名枪械");
 });
 
 ok("猜枪：比对全同全绿、箭头方向、文本维度、开火模式集合相等", () => {

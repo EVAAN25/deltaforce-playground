@@ -1,4 +1,6 @@
-/* 由 tools/build_data.js 生成（2026-08-05），请勿手改；数据源见 tools/README.md */
+/* 由 tools/build_data.js 生成（2026-08-06），请勿手改；数据源见 tools/README.md
+ * 枪械：df-api 官方图鉴快照(2024-12) + GTI 数据库 gtidb.com 合并（数值以 gtidb 较新平衡值为准，快照抓取于 2026-08-06）
+ * 配件：jiansenc/DeltaForceData 官方图鉴快照(2024-12) */
 window.DF_WEAPONS = [
  {
   "id": "18010000001",
@@ -9,8 +11,8 @@ window.DF_WEAPONS = [
    "单发",
    "全自动"
   ],
-  "meatHarm": 27,
-  "armorHarm": 32,
+  "meatHarm": 31,
+  "armorHarm": 33,
   "fireSpeed": 800,
   "shootDistance": 40,
   "recoil": 41,
@@ -134,8 +136,8 @@ window.DF_WEAPONS = [
    "单发",
    "全自动"
   ],
-  "meatHarm": 29,
-  "armorHarm": 32,
+  "meatHarm": 31,
+  "armorHarm": 35,
   "fireSpeed": 880,
   "shootDistance": 27,
   "recoil": 44,
@@ -184,7 +186,7 @@ window.DF_WEAPONS = [
    "单发",
    "全自动"
   ],
-  "meatHarm": 29,
+  "meatHarm": 32,
   "armorHarm": 35,
   "fireSpeed": 679,
   "shootDistance": 55,
@@ -212,7 +214,7 @@ window.DF_WEAPONS = [
   "meatHarm": 40,
   "armorHarm": 42,
   "fireSpeed": 649,
-  "shootDistance": 55,
+  "shootDistance": 50,
   "recoil": 34,
   "control": 55,
   "stable": 58,
@@ -261,7 +263,7 @@ window.DF_WEAPONS = [
    "连发",
    "全自动"
   ],
-  "meatHarm": 27,
+  "meatHarm": 29,
   "armorHarm": 41,
   "fireSpeed": 735,
   "shootDistance": 40,
@@ -470,7 +472,7 @@ window.DF_WEAPONS = [
   "recoil": 38,
   "control": 69,
   "stable": 42,
-  "hipShot": 68,
+  "hipShot": 52,
   "capacity": 17,
   "muzzleVelocity": 500,
   "soundDistance": 300,
@@ -566,7 +568,7 @@ window.DF_WEAPONS = [
   "meatHarm": 36,
   "armorHarm": 48,
   "fireSpeed": 747,
-  "shootDistance": 19,
+  "shootDistance": 15,
   "recoil": 45,
   "control": 68,
   "stable": 43,
@@ -595,7 +597,7 @@ window.DF_WEAPONS = [
   "recoil": 40,
   "control": 63,
   "stable": 48,
-  "hipShot": 67,
+  "hipShot": 48,
   "capacity": 30,
   "muzzleVelocity": 500,
   "soundDistance": 300,
@@ -613,14 +615,14 @@ window.DF_WEAPONS = [
    "单发",
    "全自动"
   ],
-  "meatHarm": 29,
-  "armorHarm": 27,
+  "meatHarm": 32,
+  "armorHarm": 28,
   "fireSpeed": 950,
   "shootDistance": 20,
   "recoil": 55,
   "control": 67,
   "stable": 44,
-  "hipShot": 68,
+  "hipShot": 60,
   "capacity": 20,
   "muzzleVelocity": 450,
   "soundDistance": 300,
@@ -735,8 +737,8 @@ window.DF_WEAPONS = [
   "fireModes": [
    "单发"
   ],
-  "meatHarm": 44,
-  "armorHarm": 42,
+  "meatHarm": 48,
+  "armorHarm": 49,
   "fireSpeed": 510,
   "shootDistance": 55,
   "recoil": 30,
@@ -762,7 +764,7 @@ window.DF_WEAPONS = [
   "meatHarm": 50,
   "armorHarm": 55,
   "fireSpeed": 364,
-  "shootDistance": 90,
+  "shootDistance": 60,
   "recoil": 56,
   "control": 56,
   "stable": 59,
@@ -792,7 +794,7 @@ window.DF_WEAPONS = [
   "stable": 66,
   "hipShot": 34,
   "capacity": 10,
-  "muzzleVelocity": 750,
+  "muzzleVelocity": 550,
   "soundDistance": 600,
   "weight": "1.5",
   "desc": "使用7.62×51mm弹药的高精度的半自动狙击步枪,通用部分G3改装部件。",
@@ -927,7 +929,7 @@ window.DF_WEAPONS = [
   "fireModes": [
    "全自动"
   ],
-  "meatHarm": 22,
+  "meatHarm": 23,
   "armorHarm": 16,
   "fireSpeed": 1172,
   "shootDistance": 10,
@@ -1028,7 +1030,7 @@ window.DF_WEAPONS = [
   "fireSpeed": 300,
   "shootDistance": 10,
   "recoil": 36,
-  "control": 49,
+  "control": 55,
   "stable": 49,
   "hipShot": 48,
   "capacity": 5,
@@ -1158,5 +1160,79 @@ window.DF_WEAPONS = [
   "desc": "AWM是一款由英国生产的狙击步枪，采用.338 Lapua Magnum弹药，具有极高的精度和射程，是军警中的顶级狙击武器。",
   "img": "assets/guns/18060000011.png",
   "picUrl": "https://playerhub.df.qq.com/playerhub/60004/object/p_18060000011.png"
+ },
+ {
+  "id": "18010000038",
+  "name": "腾龙突击步枪",
+  "type": "步枪",
+  "caliber": "5.56x45mm",
+  "fireModes": [
+   "单发",
+   "全自动"
+  ],
+  "weight": "",
+  "desc": "",
+  "img": "assets/guns/18010000038.png",
+  "picUrl": "https://playerhub.df.qq.com/playerhub/60004/object/p_18010000038.png",
+  "meatHarm": 35,
+  "armorHarm": 38,
+  "fireSpeed": 706,
+  "shootDistance": 35,
+  "recoil": 42,
+  "control": 60,
+  "stable": 50,
+  "hipShot": 56,
+  "capacity": 30,
+  "muzzleVelocity": 550,
+  "soundDistance": 500
+ },
+ {
+  "id": "18040000003",
+  "name": "M250通用机枪",
+  "type": "轻机枪",
+  "caliber": "6.8x51mm",
+  "fireModes": [
+   "单发",
+   "全自动"
+  ],
+  "weight": "",
+  "desc": "",
+  "img": "assets/guns/18040000003.png",
+  "picUrl": "https://playerhub.df.qq.com/playerhub/60004/object/p_18040000003.png",
+  "meatHarm": 55,
+  "armorHarm": 53,
+  "fireSpeed": 550,
+  "shootDistance": 40,
+  "recoil": 40,
+  "control": 38,
+  "stable": 50,
+  "hipShot": 55,
+  "capacity": 125,
+  "muzzleVelocity": 600,
+  "soundDistance": 600
+ },
+ {
+  "id": "18070000033",
+  "name": "M1911",
+  "type": "手枪",
+  "caliber": ".45 ACP",
+  "fireModes": [
+   "单发"
+  ],
+  "weight": "",
+  "desc": "",
+  "img": "assets/guns/18070000033.png",
+  "picUrl": "https://playerhub.df.qq.com/playerhub/60004/object/p_18070000033.png",
+  "meatHarm": 40,
+  "armorHarm": 30,
+  "fireSpeed": 373,
+  "shootDistance": 15,
+  "recoil": 39,
+  "control": 65,
+  "stable": 40,
+  "hipShot": 67,
+  "capacity": 7,
+  "muzzleVelocity": 400,
+  "soundDistance": 300
  }
 ];

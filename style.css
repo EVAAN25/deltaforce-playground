@@ -261,6 +261,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .pop-actions { display: flex; gap: 12px; justify-content: center; margin-top: 14px; }
 .pop-streak { text-align: center; margin-top: 10px; font-size: 14px; color: var(--ink-soft); }
 .pop-streak b { color: var(--orange); font-size: 18px; }
+.data-note { margin-top: 16px; font-size: 12px; color: var(--ink-soft); line-height: 1.6; text-align: center; }
 
 /* ---------- 火力排排坐 ---------- */
 .tl-list { display: flex; flex-direction: column; gap: 8px; }

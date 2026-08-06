@@ -1,4 +1,6 @@
-/* 由 tools/build_data.js 生成（2026-08-05），请勿手改；数据源见 tools/README.md */
+/* 由 tools/build_data.js 生成（2026-08-06），请勿手改；数据源见 tools/README.md
+ * 枪械：df-api 官方图鉴快照(2024-12) + GTI 数据库 gtidb.com 合并（数值以 gtidb 较新平衡值为准，快照抓取于 2026-08-06）
+ * 配件：jiansenc/DeltaForceData 官方图鉴快照(2024-12) */
 window.DF_ACC = [
  {
   "id": "13130000159",

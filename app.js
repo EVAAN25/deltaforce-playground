@@ -184,15 +184,16 @@
       <p class="r-grade">评级 <b>${DFG.smithGrade(s.score)}</b></p>
       <div class="btn-row">
         <button class="btn" id="smithShareBtn">复制分享卡</button>
-        <button class="btn ghost" id="smithAgainBtn">${Smith.mode === "daily" ? "练习模式再来一套" : "再来一套"}</button>
+        <button class="btn ghost" id="smithAgainBtn">再来一套（随机 · 不限次）</button>
       </div>`;
     $("#smithResult").classList.remove("hidden");
     $("#smithShareBtn").onclick = () => copyText(DFG.buildSmithShare({
       date: TODAY, rounds: s.results, score: s.score, practice: Smith.mode === "practice",
     }));
     $("#smithAgainBtn").onclick = () => {
+      smithNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
       if (Smith.mode === "daily") smithSetMode("practice");
-      else { smithNewPractice(); smithRender(); }
+      else smithRender();
     };
   }
 
@@ -269,19 +270,20 @@
       ${gunImgHTML(t, "lg r-portrait")}
       <h2>${won ? "猜中了！" : "揭晓答案"}：${t.name}</h2>
       <p class="r-meta">${t.type} · ${t.caliber} · ${t.fireModes.join("/")} · 伤害${t.meatHarm} · 射速${t.fireSpeed} · 射程${t.shootDistance} · 弹容${t.capacity}</p>
-      <p class="r-quote">${t.desc}</p>
+      ${t.desc ? `<p class="r-quote">${t.desc}</p>` : ""}
       <p class="r-grade">${won ? tries : "X"}/${DFG.GUESS_MAX_TRIES} 次 · 评级 <b>${DFG.guessGrade(tries, won)}</b></p>
       <div class="btn-row">
         <button class="btn" id="guessShareBtn">复制分享卡</button>
-        <button class="btn ghost" id="guessAgainBtn">${Guess.mode === "daily" ? "练习模式再来一题" : "再来一题"}</button>
+        <button class="btn ghost" id="guessAgainBtn">再来一题（随机 · 不限次）</button>
       </div>`;
     $("#guessResult").classList.remove("hidden");
     $("#guessShareBtn").onclick = () => copyText(DFG.buildGuessShare({
       date: TODAY, results: s.results, won, practice: Guess.mode === "practice",
     }));
     $("#guessAgainBtn").onclick = () => {
+      guessNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
       if (Guess.mode === "daily") guessSetMode("practice");
-      else { guessNewPractice(); guessRender(); }
+      else guessRender();
     };
   }
 
@@ -363,7 +365,7 @@
    * daily    = {statKey, chain:[11 ids], pos, score, trail:[{dir,ok}], status}
    * practice = {statKey, leftId, rightId, streak, trail, status}
    * ================================================================ */
-  const Duel = { mode: "daily", daily: null, practice: null };
+  const Duel = { mode: "daily", daily: null, practice: null, locked: false };
 
   function dState() { return Duel.mode === "daily" ? Duel.daily : Duel.practice; }
   function dPair() {
@@ -393,7 +395,7 @@
     const stat = DFG.DUEL_STAT_BY_KEY[statKey];
     const valuePart = (side === "left" || reveal)
       ? `<div class="pop-play">${w[statKey]}<small>${stat.label}</small></div>`
-      : `<div class="pop-play unknown">？</div>`;
+      : `<div class="pop-play unknown">？<small>${stat.label}</small></div>`;
     return `${gunImgHTML(w)}<div class="pop-name">${w.name}</div><div class="pop-type">${w.type} · ${w.caliber}</div>${valuePart}`;
   }
 
@@ -403,12 +405,12 @@
     const done = s.status !== "playing";
     const stat = DFG.DUEL_STAT_BY_KEY[s.statKey];
     $("#duelBanner").innerHTML = Duel.mode === "daily"
-      ? `今日题目 <b>#${TODAY}</b> · 固定 ${DFG.DUEL_DAILY_ROUNDS} 轮 · 答错即结算`
-      : `练习模式 · 直到答错 · 最高连击 <b>${loadJSON("df_duel_best", 0)}</b>`;
-    $("#duelStat").innerHTML = `今日比拼属性：<b>${stat.label}</b>`;
+      ? `今日题目 <b>#${TODAY}</b> · 固定 ${DFG.DUEL_DAILY_ROUNDS} 轮 · 答错即结算 · 每次作答后公布双方数值`
+      : `练习模式 · 直到答错 · 最高连击 <b>${loadJSON("df_duel_best", 0)}</b> · 每次作答后公布双方数值`;
+    $("#duelStat").innerHTML = `${Duel.mode === "daily" ? "今日" : "本局"}比拼属性：<b>${stat.label}</b>`;
     $("#duelLeft").innerHTML = duelCardHTML(left, "left", done, s.statKey);
     $("#duelRight").innerHTML = duelCardHTML(right, "right", done || reveal, s.statKey);
-    $("#duelActions").classList.toggle("hidden", done);
+    $("#duelActions").classList.toggle("hidden", done || Duel.locked);
     $("#duelStreak").innerHTML = Duel.mode === "daily"
       ? `第 <b>${Math.min(s.pos + 1, DFG.DUEL_DAILY_ROUNDS)}</b> / ${DFG.DUEL_DAILY_ROUNDS} 轮 · 已连对 ${s.score}`
       : `当前连击 <b>${s.streak}</b>`;
@@ -431,38 +433,56 @@
       ${bestLine}
       <div class="btn-row">
         <button class="btn" id="duelShareBtn">复制分享卡</button>
-        <button class="btn ghost" id="duelAgainBtn">${Duel.mode === "daily" ? "去练习模式冲连击" : "再来一局"}</button>
+        <button class="btn ghost" id="duelAgainBtn">再来一局（随机 · 不限次）</button>
       </div>`;
     $("#duelResult").classList.remove("hidden");
     $("#duelShareBtn").onclick = () => copyText(DFG.buildDuelShare({
       date: TODAY, statLabel: stat.label, score, trail: s.trail, practice: Duel.mode === "practice",
     }));
     $("#duelAgainBtn").onclick = () => {
+      duelNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
       if (Duel.mode === "daily") duelSetMode("practice");
-      else { duelNewPractice(); duelRender(); }
+      else duelRender();
     };
   }
 
+  const DUEL_REVEAL_MS = 1100; // 作答后公布双方数值的停留时长
+
   function duelAnswer(dir) {
     const s = dState();
-    if (!s || s.status !== "playing") return;
+    if (!s || s.status !== "playing" || Duel.locked) return;
     const [left, right] = dPair();
     const ok = DFG.duelJudge(dir, left, right, s.statKey);
     s.trail.push({ dir, ok });
     if (Duel.mode === "daily") {
       if (ok) {
         s.score++;
-        s.pos++;
-        if (s.pos >= DFG.DUEL_DAILY_ROUNDS) s.status = "won";
-      } else s.status = "lost";
-      dPersist();
-      duelRender(!ok); // 答错瞬间先揭示右边数值，随后结算
+        // 答对也先公布双方数值，停留后进入下一轮
+        Duel.locked = true;
+        duelRender(true);
+        setTimeout(() => {
+          Duel.locked = false;
+          s.pos++;
+          if (s.pos >= DFG.DUEL_DAILY_ROUNDS) s.status = "won";
+          dPersist();
+          duelRender();
+        }, DUEL_REVEAL_MS);
+      } else {
+        s.status = "lost";
+        dPersist();
+        duelRender(true); // 答错：揭示双方数值后结算
+      }
     } else {
       if (ok) {
         s.streak++;
-        s.leftId = s.rightId;
-        s.rightId = DFG.duelNext(WEAPONS, right, s.statKey).id;
-        duelRender();
+        Duel.locked = true;
+        duelRender(true);
+        setTimeout(() => {
+          Duel.locked = false;
+          s.leftId = s.rightId;
+          s.rightId = DFG.duelNext(WEAPONS, right, s.statKey).id;
+          duelRender();
+        }, DUEL_REVEAL_MS);
       } else {
         s.status = "lost";
         const best = loadJSON("df_duel_best", 0);
@@ -572,15 +592,16 @@
       <p class="r-grade">${won ? s.attempts.length : "X"}/${DFG.SORT_MAX_TRIES} 次 · 评级 <b>${DFG.sortGrade(s.attempts.length, won)}</b></p>
       <div class="btn-row">
         <button class="btn" id="sortShareBtn">复制分享卡</button>
-        <button class="btn ghost" id="sortAgainBtn">${Sort.mode === "daily" ? "练习模式再来一题" : "再来一题"}</button>
+        <button class="btn ghost" id="sortAgainBtn">再来一题（随机 · 不限次）</button>
       </div>`;
     $("#sortResult").classList.remove("hidden");
     $("#sortShareBtn").onclick = () => copyText(DFG.buildSortShare({
       date: TODAY, statLabel: stat.label, attempts: s.attempts, won, practice: Sort.mode === "practice",
     }));
     $("#sortAgainBtn").onclick = () => {
+      sortNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
       if (Sort.mode === "daily") sortSetMode("practice");
-      else { sortNewPractice(); sortRender(); }
+      else sortRender();
     };
   }
 
