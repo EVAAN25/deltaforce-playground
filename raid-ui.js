@@ -9,7 +9,7 @@
   const TS = 30; // 每格像素（720×480 / 24×16）
   const TIER_NAME = { 6: "顶级容器", 5: "高级容器", 1: "低级容器" };
   const GRADE_NAME = { 1: "灰", 2: "绿", 3: "蓝", 4: "紫", 5: "金", 6: "红" };
-  const TIP_DEFAULT = "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>E</b>（或点容器）开吃 · 站到撤离点按 <b>E</b> 引导撤离";
+  const TIP_DEFAULT = "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>F</b>（或点容器）开吃 · 站到撤离点按 <b>F</b> 引导撤离";
 
   // ---------- 图片兜底：品质色块 + 物品名首字 ----------
   window.__dfRaidImg = function (img) {
@@ -345,8 +345,8 @@
     const run = Raid.run;
     const onExtract = run.map.extracts.some((e) => e.x === run.px && e.y === run.py);
     const adj = adjacentContainer();
-    if (onExtract) setTip(`到撤离点了！按 <b>E</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，期间不能走动，被看见＝被抓）`);
-    else if (adj) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>E</b> 开吃`);
+    if (onExtract) setTip(`到撤离点了！按 <b>F</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，期间不能走动，被看见＝被抓）`);
+    else if (adj) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>F</b> 开吃`);
     else setTip(TIP_DEFAULT);
   }
 
@@ -383,7 +383,7 @@
         Raid.run.queue = []; // 键盘接管，清空寻路
         Raid.run.autoSearch = null;
         e.preventDefault();
-      } else if (k === "e") {
+      } else if (k === "f") {
         e.preventDefault();
         interact();
       }
