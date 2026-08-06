@@ -54,7 +54,7 @@ ok("数据：attachments 392 件、id 唯一、9 个部位、有数值或效果�
   assert.strictEqual(slots.size, 9, "部位数 " + slots.size);
 });
 
-ok("数据：loot 253 件收集品、id 唯一、字段与数值合法", () => {
+ok("数据：loot 253 件收集品、id 唯一、字段与数值合法、真实价格元信息齐全", () => {
   assert.strictEqual(LOOT_ITEMS.length, 253);
   const ids = new Set();
   const TYPES = ["工艺藏品", "工具材料", "电子物品", "医疗道具", "家居物品", "资料情报"];
@@ -63,12 +63,23 @@ ok("数据：loot 253 件收集品、id 唯一、字段与数值合法", () => {
     assert(Number.isInteger(i.grade) && i.grade >= 1 && i.grade <= 6, "品质 " + i.name);
     assert(TYPES.includes(i.type), "类型 " + i.name);
     assert(i.len > 0 && i.wid > 0 && i.cells === i.len * i.wid, "尺寸 " + i.name);
-    assert(Number.isInteger(i.value) && i.value > 0, "value " + i.name);
-    assert(Number.isInteger(i.perCell) && i.perCell > 0, "perCell " + i.name);
+    assert(typeof i.priced === "boolean", "priced 标记 " + i.name);
+    if (i.priced) {
+      assert(Number.isInteger(i.value) && i.value > 0, "value " + i.name);
+      assert(Number.isInteger(i.perCell) && i.perCell > 0, "perCell " + i.name);
+    } else {
+      assert(i.value === null && i.perCell === null, "未定价物品应无价值 " + i.name);
+    }
     assert(typeof i.source === "string" && typeof i.desc === "string", "source/desc " + i.name);
     assert(i.img && i.remote, "img/remote " + i.name);
     assert(!ids.has(i.id)); ids.add(i.id);
   }
+  // 价格元信息：来源与快照日期必须存在（页面据此注明）
+  const meta = DF_LOOT.meta;
+  assert(meta && meta.priceSource && /^\d{4}-\d{2}-\d{2}$/.test(meta.priceDate), "meta 价格来源/日期");
+  assert.strictEqual(meta.pricedCount, DFG.lootPool(LOOT_ITEMS).length, "pricedCount 与题池一致");
+  assert(meta.pricedCount >= 230, "可交易物品过少: " + meta.pricedCount);
+  assert.strictEqual(meta.itemCount, LOOT_ITEMS.length);
   assert(Array.isArray(DF_LOOT.containers) && DF_LOOT.containers.length > 0, "容器为空");
   for (const c of DF_LOOT.containers) assert(c.name && c.w > 0 && c.h > 0 && c.tier > 0, "容器字段 " + c.name);
 });
@@ -312,16 +323,20 @@ ok("排排坐：marks 全对/部分对、评级、分享卡不含枪名", () => 
 });
 
 // ---------- 玩法 5：摸金对决 ----------
-ok("摸金对决：连续 30 天每日链 11 件、维度合法、相邻取值不同", () => {
+ok("摸金对决：连续 30 天每日链 11 件、维度合法、相邻取值不同、全部已定价", () => {
   for (const d of next30Days()) {
     const q = DFG.lootDuelDaily(d, LOOT_ITEMS);
     assert(DFG.LOOT_STAT_BY_KEY[q.statKey], "未知维度 " + q.statKey);
     assert.strictEqual(q.chain.length, DFG.LOOT_DUEL_ROUNDS + 1, "链长度不足 " + d);
     const chain = q.chain.map((id) => lootById[id]);
+    assert(chain.every((i) => i.priced), "链里混入未定价物品 " + d);
     for (let i = 0; i + 1 < chain.length; i++) {
       assert(DFG.lootDuelPairable(chain[i], chain[i + 1], q.statKey), `相邻不可配对 ${d}#${i}`);
     }
   }
+  // 13 件未定价物品（火箭燃料等）不得进入题池
+  const pool = DFG.lootPool(LOOT_ITEMS);
+  assert(!pool.some((i) => i.name === "火箭燃料"), "未定价物品入池");
 });
 
 ok("摸金对决：判定、随机下家、格式化、评级、分享卡不含物品名", () => {

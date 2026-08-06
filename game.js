@@ -479,6 +479,11 @@
   LOOT_STATS.forEach((s) => { LOOT_STAT_BY_KEY[s.key] = s; });
   const LOOT_DUEL_ROUNDS = 10;
 
+  // 出题池：仅可交易（有真实交易行价格）的收集品；未匹配到价格的不参与出题
+  function lootPool(items) {
+    return items.filter((i) => i.priced && typeof i.value === "number" && typeof i.perCell === "number");
+  }
+
   // 金额展示：≥1 万用「万」保留一位小数（整数不带 .0），否则原值
   function formatLoot(n) {
     if (n >= 10000) {
@@ -495,9 +500,10 @@
 
   // 每日：种子选维度 + 11 件串成链（相邻在该维度上取值不同）
   function lootDuelDaily(date, items) {
+    const pool = lootPool(items);
     const rng = mulberry32(hash32("df-lootduel:" + date));
     const stat = LOOT_STATS[Math.floor(rng() * LOOT_STATS.length)];
-    const shuffled = shuffle(items.slice(), rng);
+    const shuffled = shuffle(pool.slice(), rng);
     const chain = [shuffled[0]];
     for (let i = 1; i < shuffled.length && chain.length < LOOT_DUEL_ROUNDS + 1; i++) {
       if (lootDuelPairable(chain[chain.length - 1], shuffled[i], stat.key)) chain.push(shuffled[i]);
@@ -507,9 +513,10 @@
 
   function lootDuelRandom(items, rand) {
     rand = rand || Math.random;
+    const pool = lootPool(items);
     const stat = LOOT_STATS[Math.floor(rand() * LOOT_STATS.length)];
-    const left = items[Math.floor(rand() * items.length)];
-    const right = lootDuelNext(items, left, stat.key, rand);
+    const left = pool[Math.floor(rand() * pool.length)];
+    const right = lootDuelNext(pool, left, stat.key, rand);
     return { statKey: stat.key, leftId: left.id, rightId: right.id };
   }
 
@@ -554,11 +561,12 @@
   const LOOT_SORT_MAX_TRIES = 3;
 
   function lootSortDaily(date, items) {
+    const pool = lootPool(items);
     const rng = mulberry32(hash32("df-lootsort:" + date));
     const stat = LOOT_STATS[Math.floor(rng() * LOOT_STATS.length)];
-    const ids = sortPick(rng, items, stat.key).map((w) => w.id);
+    const ids = sortPick(rng, pool, stat.key).map((w) => w.id);
     const byId = {};
-    items.forEach((w) => { byId[w.id] = w; });
+    pool.forEach((w) => { byId[w.id] = w; });
     const sorted = sortCorrect(ids, byId, stat.key);
     if (ids.every((id, i) => id === sorted[i])) [ids[0], ids[1]] = [ids[1], ids[0]];
     return { statKey: stat.key, ids };
@@ -566,11 +574,12 @@
 
   function lootSortRandom(items, rand) {
     rand = rand || Math.random;
+    const pool = lootPool(items);
     const rng = mulberry32(Math.floor(rand() * 0xffffffff));
     const stat = LOOT_STATS[Math.floor(rng() * LOOT_STATS.length)];
-    const ids = sortPick(rng, items, stat.key).map((w) => w.id);
+    const ids = sortPick(rng, pool, stat.key).map((w) => w.id);
     const byId = {};
-    items.forEach((w) => { byId[w.id] = w; });
+    pool.forEach((w) => { byId[w.id] = w; });
     const sorted = sortCorrect(ids, byId, stat.key);
     if (ids.every((id, i) => id === sorted[i])) [ids[0], ids[1]] = [ids[1], ids[0]];
     return { statKey: stat.key, ids };
@@ -615,7 +624,7 @@
     SORT_STATS, SORT_PICK, SORT_MAX_TRIES,
     sortPick, sortDaily, sortRandom, sortCorrect, sortMarks, sortGrade, buildSortShare,
     // 鼠鼠摸金：摸金对决 + 物资排排坐
-    LOOT_STATS, LOOT_STAT_BY_KEY, LOOT_DUEL_ROUNDS, formatLoot,
+    LOOT_STATS, LOOT_STAT_BY_KEY, LOOT_DUEL_ROUNDS, formatLoot, lootPool,
     lootDuelPairable, lootDuelDaily, lootDuelRandom, lootDuelNext, lootDuelJudge, lootDuelGrade, buildLootDuelShare,
     LOOT_SORT_PICK, LOOT_SORT_MAX_TRIES,
     lootSortDaily, lootSortRandom, lootSortGrade, buildLootSortShare,

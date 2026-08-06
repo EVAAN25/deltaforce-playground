@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 /*
- * 数据管线：摸金撤离玩法（鼠鼠摸金）物品/容器数据
+ * 数据管线：摸金玩法（收集品）数据
  *  物品 = jiansenc/DeltaForceData 官方图鉴快照 props/collection.json（253 件收集品：
- *         名称/品质/格数/类别/描述/官方图鉴图，均为真实图鉴数据）
- *  容器 = 《三角洲行动》游戏内真实容器名称；w×h 格数与档位参考 B 站 Toy 作品
- *        《三角洲小涛查-鼠鼠偷吃模拟器》前端常量（orzice.com，仅作事实性参考）
- *  价值 = 同人自设公式（官方未公开静态物价）：品质基价 × 类别系数 × 格数^0.85 × 稳定抖动
- *         —— 价值与掉落权重均为玩法设计数值，非官方交易行价，页面已注明
+ *         名称/品质/格数/类别/产出地图/描述/官方图鉴图，均为真实图鉴数据）
+ *  价值 = 三角洲数据帝（orzice.com）真实交易行价格：
+ *         - 默认拉开源快照 orzice/DeltaForcePrice（price.json，2026-01-10 停更）
+ *         - 设环境变量 ORZICE_TOKEN 则改拉线上实时接口 /v1/sjz_api/item_price_all
+ *           （高频1分钟/中频5分钟/低频10分钟更新；token 需在 orzice.com/work 控制台
+ *            QQ 登录后开通服务获取，切勿提交进仓库）
+ *  容器/掉落权重 = 同人自设玩法数值（仅供 WIP 的 2D 摸金撤离玩法使用，见 ../_wip_raid）
  * 输出浏览器直引的 data/loot.js。无第三方依赖，Node >= 18。
- * 用法：node tools/build_loot.js
+ * 用法：node tools/build_loot.js   或   ORZICE_TOKEN=xxx node tools/build_loot.js
  */
 "use strict";
 const fs = require("fs");
@@ -16,6 +18,8 @@ const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
 const DFDATA = "https://cdn.jsdelivr.net/gh/jiansenc/DeltaForceData@main/public/json";
+const PRICE_SNAPSHOT = "https://cdn.jsdelivr.net/gh/orzice/DeltaForcePrice@master/price.json";
+const PRICE_LIVE = "https://orzice.com/workApi/v1/sjz_api/item_price_all";
 
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; deltaforce-playground data pipeline)" };
 
@@ -25,27 +29,32 @@ async function fetchJson(url) {
   return r.json();
 }
 
-// ---- 价值公式（同人自设）----
-const GRADE_BASE = { 1: 3000, 2: 8000, 3: 25000, 4: 70000, 5: 220000, 6: 900000 };
-const TYPE_MULT = {
-  "工艺藏品": 1.5, "电子物品": 1.3, "资料情报": 1.25,
-  "医疗道具": 1.0, "工具材料": 0.9, "家居物品": 0.8,
-};
-
-// 稳定抖动：同一物品全站同价（±12%）
-function jitter(objectID) {
-  let h = 2166136261;
-  const s = String(objectID);
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return 0.88 + ((h >>> 0) % 1000) / 1000 * 0.24;
+// ---------- 价格源 ----------
+// 统一成 { byName: Map<name, {price, time}>, live: bool, date: "YYYY-MM-DD" }
+async function fetchPrices() {
+  const token = process.env.ORZICE_TOKEN;
+  if (token) {
+    const raw = await fetchJson(`${PRICE_LIVE}?token=${encodeURIComponent(token)}`);
+    const list = Array.isArray(raw) ? raw : raw.data;
+    if (!Array.isArray(list)) throw new Error("实时价格接口返回结构异常: " + JSON.stringify(raw).slice(0, 200));
+    return packPrices(list, true);
+  }
+  const list = await fetchJson(PRICE_SNAPSHOT);
+  return packPrices(list, false);
 }
 
-function itemValue(it) {
-  const cells = it.length * it.width;
-  const base = GRADE_BASE[it.grade] || 3000;
-  const mult = TYPE_MULT[(it.propsDetail || {}).type] || 1.0;
-  const v = base * mult * Math.pow(cells, 0.85) * jitter(it.objectID);
-  return Math.round(v / 100) * 100;
+function packPrices(list, live) {
+  const byName = new Map();
+  let maxTime = 0;
+  for (const p of list) {
+    if (!p || typeof p.name !== "string" || typeof p.price !== "number") continue;
+    byName.set(p.name, { price: p.price, time: p.is_get_time || 0 });
+    if (p.is_get_time > maxTime) maxTime = p.is_get_time;
+  }
+  const date = maxTime
+    ? new Date(maxTime * 1000).toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" })
+    : "未知";
+  return { byName, live, date, total: byName.size };
 }
 
 // ---- 容器表（游戏真实容器；尺寸/档位参考小涛查前端常量）----
@@ -81,7 +90,7 @@ const CONTAINERS = [
   { id: 24, name: "工具柜", w: 5, h: 6, tier: 1 },
 ];
 
-// 掉落品质权重（同人自设）：tier -> {grade: weight}
+// 掉落品质权重（同人自设，仅 WIP 玩法使用）：tier -> {grade: weight}
 const DROP_WEIGHTS = {
   6: { 1: 0.05, 2: 0.13, 3: 0.27, 4: 0.30, 5: 0.18, 6: 0.07 },
   5: { 1: 0.15, 2: 0.24, 3: 0.30, 4: 0.20, 5: 0.09, 6: 0.02 },
@@ -89,7 +98,10 @@ const DROP_WEIGHTS = {
 };
 
 (async () => {
-  const raw = await fetchJson(`${DFDATA}/props/collection.json`);
+  const [raw, prices] = await Promise.all([
+    fetchJson(`${DFDATA}/props/collection.json`),
+    fetchPrices(),
+  ]);
   // 上游 JSON 嵌套层级不稳定（jData.data / jData.data.data.list 都出现过），递归找物品数组
   function findItems(o) {
     if (Array.isArray(o) && o.length && o[0] && o[0].objectID) return o;
@@ -101,9 +113,12 @@ const DROP_WEIGHTS = {
   const list = findItems(raw);
   if (!list) throw new Error("collection.json 里没找到物品数组");
 
+  const unpriced = [];
   const items = list.map((it) => {
     const cells = it.length * it.width;
-    const value = itemValue(it);
+    const p = prices.byName.get(it.objectName);
+    const priced = !!p && p.price > 0;
+    if (!priced) unpriced.push(it.objectName);
     return {
       id: it.objectID,
       name: it.objectName,
@@ -114,30 +129,47 @@ const DROP_WEIGHTS = {
       type: (it.propsDetail || {}).type || "",
       source: (it.propsDetail || {}).propsSource || "",
       desc: it.desc || "",
-      value,
-      perCell: Math.round(value / cells),
+      priced,
+      value: priced ? p.price : null,          // 真实交易行价格（快照/实时见 meta）
+      perCell: priced ? Math.round(p.price / cells) : null,
       img: `assets/props/p_${it.objectID}.png`,
       remote: it.prePic,
       meme: it.objectName === "座钟" || undefined,
     };
   });
 
-  // 校验：每档品质都要有货，否则掉落表会抽不出来
+  // 校验：每档品质都要有货（掉落表用）；可交易物品必须占绝大多数
   const byGrade = {};
   items.forEach((i) => { (byGrade[i.grade] = byGrade[i.grade] || []).push(i); });
   for (let g = 1; g <= 6; g++) {
     if (!byGrade[g] || !byGrade[g].length) throw new Error(`品质 ${g} 无物品`);
   }
+  const pricedCount = items.length - unpriced.length;
+  if (pricedCount < items.length * 0.85) {
+    throw new Error(`价格匹配率过低：${pricedCount}/${items.length}，未匹配样例 ${unpriced.slice(0, 5).join("、")}`);
+  }
+
+  const meta = {
+    priceSource: prices.live
+      ? "三角洲数据帝（orzice.com）实时交易行 API"
+      : "三角洲数据帝（orzice.com）交易行价格开源快照（orzice/DeltaForcePrice，已停更）",
+    priceDate: prices.date,
+    priceLive: prices.live,
+    itemCount: items.length,
+    pricedCount,
+  };
 
   const out = `/* 由 tools/build_loot.js 生成（${new Date().toISOString().slice(0, 10)}），请勿手改
  * 物品：jiansenc/DeltaForceData 官方图鉴快照（收集品 ${items.length} 件，真实图鉴字段）
- * 容器：游戏真实容器（名称/尺寸/档位参考 B 站 Toy《三角洲小涛查》前端常量）
- * 价值与掉落权重：同人自设玩法数值，非官方交易行价 */
-window.DF_LOOT = ${JSON.stringify({ items, containers: CONTAINERS, dropWeights: DROP_WEIGHTS }, null, 1)};
+ * 价值：${meta.priceSource}，价格日期 ${meta.priceDate}（可交易 ${pricedCount} 件；未匹配 ${unpriced.length} 件不参与出题）
+ * 容器与掉落权重：同人自设玩法数值（仅 WIP 玩法使用），非官方数据 */
+window.DF_LOOT = ${JSON.stringify({ items, containers: CONTAINERS, dropWeights: DROP_WEIGHTS, meta }, null, 1)};
 `;
   fs.writeFileSync(path.join(ROOT, "data", "loot.js"), out);
   const stats = Object.fromEntries(Object.entries(byGrade).map(([g, a]) => [g, a.length]));
   console.log(`data/loot.js 生成完成：物品 ${items.length} 件（品质分布 ${JSON.stringify(stats)}），容器 ${CONTAINERS.length} 种`);
-  const top = [...items].sort((a, b) => b.value - a.value).slice(0, 5);
+  console.log(`价格源：${meta.priceSource} @ ${meta.priceDate}；可交易 ${pricedCount}/${items.length}`);
+  if (unpriced.length) console.log("未匹配价格（不参与出题）:", unpriced.join("、"));
+  const top = items.filter((i) => i.priced).sort((a, b) => b.value - a.value).slice(0, 5);
   top.forEach((i) => console.log(`  价值TOP: ${i.name} g${i.grade} ${i.cells}格 ¥${i.value.toLocaleString()} 单格¥${i.perCell.toLocaleString()}`));
 })().catch((e) => { console.error(e); process.exit(1); });

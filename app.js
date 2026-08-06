@@ -8,6 +8,7 @@
   const WEAPONS = window.DF_WEAPONS;
   const ACCS = window.DF_ACC;
   const LOOT_ITEMS = window.DF_LOOT.items;
+  const LOOT_META = window.DF_LOOT.meta || {};
   const byId = {};
   WEAPONS.forEach((w) => { byId[w.id] = w; });
   const accById = {};
@@ -649,10 +650,16 @@
     LootDuel.practice = { statKey: q.statKey, leftId: q.leftId, rightId: q.rightId, streak: 0, trail: [], status: "playing" };
   }
 
+  // 价格来源说明（快照日期随管线重跑自动更新）
+  function lootPriceNoteHTML() {
+    const when = LOOT_META.priceLive ? "实时接口" : `快照 ${LOOT_META.priceDate || "未知"}（开源库已停更）`;
+    return `价格来源：三角洲数据帝（orzice.com）真实交易行数据 · ${when}；物品名称 / 品质 / 尺寸 / 类型 / 产出地图来自官方图鉴快照（2024-12）。`;
+  }
+
   function lootCardHTML(w, side, reveal, statKey) {
     const stat = DFG.LOOT_STAT_BY_KEY[statKey];
     const valuePart = (side === "left" || reveal)
-      ? `<div class="pop-play">${DFG.formatLoot(w[statKey])}<small>${stat.label}（自设）</small></div>`
+      ? `<div class="pop-play">${DFG.formatLoot(w[statKey])}<small>${stat.label} · 哈夫币</small></div>`
       : `<div class="pop-play unknown">？<small>${stat.label}</small></div>`;
     return `${lootImgHTML(w)}<div class="pop-name">${w.name}</div>
       <div class="pop-type">品质${w.grade} · ${w.type} · ${w.cells} 格</div>${valuePart}`;
@@ -673,6 +680,7 @@
     $("#lootDuelStreak").innerHTML = LootDuel.mode === "daily"
       ? `第 <b>${Math.min(s.pos + 1, DFG.LOOT_DUEL_ROUNDS)}</b> / ${DFG.LOOT_DUEL_ROUNDS} 轮 · 已连对 ${s.score}`
       : `当前连击 <b>${s.streak}</b>`;
+    $("#lootDuelNote").textContent = lootPriceNoteHTML();
     if (done) lootDuelRenderResult();
     else $("#lootDuelResult").classList.add("hidden");
   }
@@ -805,6 +813,7 @@
     $("#lootSortSubmit").disabled = done;
     $("#lootSortAttempts").innerHTML = s.attempts.map((m) =>
       `<div class="tl-marks">${m.map((b) => (b ? "🟩" : "🟥")).join("")}</div>`).join("");
+    $("#lootSortNote").textContent = lootPriceNoteHTML();
     if (done) lootSortRenderResult();
     else $("#lootSortResult").classList.add("hidden");
   }
