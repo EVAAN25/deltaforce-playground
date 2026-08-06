@@ -75,12 +75,13 @@
       o.connect(g); g.connect(master);
       o.start(at); o.stop(at + dur + 0.05);
     }
-    // 出货音：品质越高越华丽（金/红双音上扬）
+    // 出货音：官方是清脆的"叮"声按品质分层——红三连叮、金双叮、紫单叮、低品质短tick
     function ding(grade) {
       const c = ac(); if (!c) return;
       const t = c.currentTime;
-      if (grade >= 6) { blip(880, t, 0.14, "sine", 0.22); blip(1318.5, t + 0.09, 0.3, "sine", 0.2); }
-      else if (grade === 5) { blip(784, t, 0.11, "sine", 0.2); blip(1174.7, t + 0.08, 0.2, "sine", 0.16); }
+      if (grade >= 6) { blip(987.8, t, 0.12, "sine", 0.22); blip(1174.7, t + 0.09, 0.12, "sine", 0.2); blip(1480, t + 0.18, 0.32, "sine", 0.2); }
+      else if (grade === 5) { blip(880, t, 0.12, "sine", 0.2); blip(1174.7, t + 0.09, 0.24, "sine", 0.17); }
+      else if (grade === 4) blip(784, t, 0.11, "sine", 0.15);
       else blip(340 + grade * 70, t, 0.06, "triangle", 0.12);
     }
     // 入包/入箱：短促"咔哒"
@@ -92,17 +93,27 @@
   })();
 
   // ---------- 状态 ----------
-  const Raid = { mode: "daily", run: null, active: false, overlay: null, keys: {}, tickTimer: null, rafId: 0 };
+  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, tickTimer: null, rafId: 0 };
 
   function newRun(mode) {
-    const seed = mode === "daily" ? DFR.dailySeed(DF_APP.TODAY) : (Math.floor(Math.random() * 0xffffffff) >>> 0);
-    const map = DFR.generateRaid(seed, LOOT);
+    let seed, cfg, level = null, practiceName = null;
+    if (mode === "daily") {
+      seed = DFR.dailySeed(DF_APP.TODAY); cfg = DFR.DEFAULT_CFG;
+    } else if (mode === "levels") {
+      level = Raid.level; cfg = DFR.LEVELS[level].cfg;
+      seed = DFG.hash32("df-raid-level:" + DFR.LEVELS[level].id); // 每关固定图，全站一致
+    } else {
+      const lv = DFR.LEVELS[Math.floor(Math.random() * DFR.LEVELS.length)];
+      cfg = lv.cfg; practiceName = lv.name;
+      seed = (Math.floor(Math.random() * 0xffffffff) >>> 0);
+    }
+    const map = DFR.generateRaid(seed, LOOT, cfg);
     const introRng = DFG.mulberry32((seed ^ 0x5f3a) >>> 0);
     const now = performance.now();
     return {
-      mode, seed, map,
+      mode, level, seed, map, practiceName,
       solid: DFR.makeSolidFn(map),
-      timeLeft: DFR.RAID_SECONDS,
+      timeLeft: map.cfg.seconds,
       px: map.spawn.x, py: map.spawn.y,
       vx: map.spawn.x * TS, vy: map.spawn.y * TS,
       queue: [], nextStep: 0, nextNpc: now + DFR.PATROL_STEP_MS, nextSec: now + 1000,
@@ -297,7 +308,7 @@
     const run = Raid.run;
     const onExtract = run.map.extracts.some((e) => e.x === run.px && e.y === run.py);
     const adj = adjacentContainer();
-    if (onExtract) setTip(`到撤离点了！按 <b>E</b> 开始引导（${DFR.EXTRACT_MS / 1000} 秒，猛攻队接近会打断）`);
+    if (onExtract) setTip(`到撤离点了！按 <b>E</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，被看见会暂停、走动会取消）`);
     else if (adj) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>E</b> 开吃`);
     else setTip(TIP_DEFAULT);
   }
@@ -406,7 +417,7 @@
       return;
     }
     if (run.extractPaused) { run.extractPaused = false; run.extracting = now; }
-    if (run.extractAcc + (now - run.extracting) >= DFR.EXTRACT_MS) finish("extracted");
+    if (run.extractAcc + (now - run.extracting) >= run.map.cfg.extractMs) finish("extracted");
   }
 
   function updateExtractBar() {
@@ -417,7 +428,7 @@
     bar.classList.toggle("paused", run.extractPaused);
     bar.querySelector(".re-text").textContent = run.extractPaused ? "猛攻队逼近——引导暂停（进度保留）" : "撤离引导中……";
     const done = run.extractAcc + (run.extractPaused ? 0 : performance.now() - run.extracting);
-    const pct = Math.min(100, done / DFR.EXTRACT_MS * 100);
+    const pct = Math.min(100, done / run.map.cfg.extractMs * 100);
     $("#raidExtractFill").style.width = pct + "%";
   }
 
@@ -473,101 +484,96 @@
     updateHUD();
   }
 
-  // ---------- 搜索浮层（核心爽感） ----------
+  // ---------- 搜索浮层（官方形态：剪影全见 → 逐件点击鉴定） ----------
   function openSearch(c) {
     const run = Raid.run;
     if (!c.drops) { // 局种子 + 容器坐标 → 掉落与搜索顺序无关，每日图全场确定
       const drng = DFG.mulberry32(DFG.hash32(`df-raid-drop:${run.seed}:${c.cid}:${c.x},${c.y}`));
       c.drops = DFR.rollContainer(drng, c, LOOT);
     }
-    const ov = { c, skip: false, done: false, cancelled: false, value: 0, staging: c.drops.slice() };
+    const ov = { c, searching: null, auto: false, done: false, cancelled: false, value: 0, staging: [] };
     Raid.overlay = ov;
     run.queue = [];
 
     $("#rpTitle").innerHTML = `${c.name}<span class="rp-tier">${TIER_NAME[c.tier]} · ${c.w}×${c.h}</span>`;
     $("#rpValue").textContent = "价值【0】";
-    $("#rpMsg").textContent = "民以食为天，开吃！";
+    $("#rpMsg").textContent = c.drops.length ? "点一件货开始鉴定 —— 转得越久越值钱" : "这容器比鼠鼠的脸还干净……";
     $("#rpStaging").innerHTML = "";
-    $("#rpClose").classList.add("hidden");
+    $("#rpClose").classList.remove("hidden");
     $("#rpSkip").classList.toggle("hidden", !c.drops.length);
 
-    // 格子 + 遮挡 + 物品（遮挡在上层）
+    // 官方：开箱即见全部物品剪影（占格形状可见，可预判大件），点击才鉴定
     const grid = $("#rpGrid");
     grid.style.gridTemplateColumns = `repeat(${c.w}, 44px)`;
+    const occ = DFR.makeGrid(c.w, c.h, 0);
+    c.drops.forEach((d) => {
+      for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
+    });
     let html = c.drops.map((d, i) =>
-      `<div class="rp-item g${d.item.grade}" data-i="${i}" style="grid-column:${d.x + 1}/span ${d.w};grid-row:${d.y + 1}/span ${d.h};visibility:hidden">
-        ${itemImgHTML(d.item)}
-        <div class="bi-name">${d.item.name}</div>
-      </div>`).join("");
+      `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格"
+        style="grid-column:${d.x + 1}/span ${d.w};grid-row:${d.y + 1}/span ${d.h}"><span class="rp-unknown">?</span></div>`).join("");
     for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
-      html += `<div class="rp-cell" data-x="${x}" data-y="${y}" style="grid-column:${x + 1};grid-row:${y + 1}">🔍</div>`;
+      if (!occ[y][x]) html += `<div class="rp-empty" style="grid-column:${x + 1};grid-row:${y + 1}"></div>`;
     }
     grid.innerHTML = html;
+    grid.querySelectorAll(".rp-silhouette").forEach((el) =>
+      el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
     $("#raidOverlay").classList.remove("hidden");
-    const tag = $("#rpSearching");
-    tag.classList.remove("hidden", "done");
-    tag.innerHTML = "🔍 正在搜索<span class=\"rp-dots\"></span>";
-
-    revealLoop(ov);
+    if (!c.drops.length) ov.done = true;
   }
 
-  // 高亮正在搜的格子：脉冲 + 底部进度条（时长 = 该品质揭晓耗时）
-  function markSearching(d, ms) {
-    const grid = $("#rpGrid");
-    for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) {
-      const cell = grid.querySelector(`.rp-cell[data-x="${d.x + dx}"][data-y="${d.y + dy}"]`);
-      if (cell) {
-        cell.classList.add("searching");
-        cell.style.setProperty("--rd", ms + "ms");
-      }
-    }
-  }
-
-  function waitOv(ov, ms) {
-    return new Promise((res) => {
-      const t0 = performance.now();
-      const iv = setInterval(() => {
-        if (ov.cancelled || ov.skip || performance.now() - t0 >= ms) { clearInterval(iv); res(); }
-      }, 40);
-    });
-  }
-
-  async function revealLoop(ov) {
-    for (const d of ov.c.drops) {
-      if (ov.cancelled) return;
-      if (d.item.cells >= DFR.BIG_CELLS) { // 大件多停一拍
-        $("#rpMsg").textContent = "这格怎么这么久……";
-        await waitOv(ov, DFR.BIG_PAUSE_MS);
-      }
-      if (ov.cancelled) return;
-      const ms = DFR.REVEAL_SEC[d.item.grade] * 1000;
-      markSearching(d, ms);
-      if (!ov.skip) Sfx.rustleStart();
-      await waitOv(ov, ms);
+  // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
+  function searchItem(ov, i) {
+    if (ov.cancelled || ov.searching != null) return;
+    const d = ov.c.drops[i];
+    if (!d || d.revealed) return;
+    const el = $("#rpGrid").querySelector(`.rp-item[data-i="${i}"]`);
+    if (!el) return;
+    const ms = DFR.REVEAL_SEC[d.item.grade] * 1000 * (0.9 + Math.random() * 0.4);
+    ov.searching = i;
+    el.classList.add("searching");
+    el.style.setProperty("--rd", ms + "ms");
+    Sfx.rustleStart();
+    const t0 = performance.now();
+    const iv = setInterval(() => {
+      if (ov.cancelled || Raid.overlay !== ov) { clearInterval(iv); Sfx.rustleStop(); return; }
+      if (performance.now() - t0 < ms) return;
+      clearInterval(iv);
       Sfx.rustleStop();
-      if (ov.cancelled) return;
+      ov.searching = null;
       revealItem(ov, d);
-      if (!ov.skip) Sfx.ding(d.item.grade);
-    }
+      Sfx.ding(d.item.grade);
+      if (ov.auto) setTimeout(() => searchAll(ov), 60);
+    }, 40);
+  }
+
+  // 「全部搜索」：按顺序自动鉴定剩余货
+  function searchAll(ov) {
+    if (ov.cancelled || Raid.overlay !== ov) return;
+    const i = ov.c.drops.findIndex((d) => !d.revealed);
+    if (i < 0) { ov.auto = false; checkAllRevealed(ov); return; }
+    searchItem(ov, i);
+  }
+
+  function checkAllRevealed(ov) {
+    if (ov.cancelled || !ov.c.drops.every((d) => d.revealed)) return;
     ov.done = true;
+    ov.auto = false;
     $("#rpSkip").classList.add("hidden");
-    $("#rpClose").classList.remove("hidden");
-    const tag = $("#rpSearching");
-    tag.classList.add("done");
-    tag.textContent = "✓ 搜索完毕";
-    $("#rpMsg").textContent = ov.staging.length ? "不够不够，继续吃！—— 点下面的货入包" : "这容器比鼠鼠的脸还干净……";
-    renderStaging(ov);
+    $("#rpMsg").textContent = ov.staging.length ? "不够不够，继续吃！—— 点下面的货入包" : "搜完了，一件不剩";
   }
 
   function revealItem(ov, d) {
+    d.revealed = true;
     const i = ov.c.drops.indexOf(d);
-    const grid = $("#rpGrid");
-    const itemEl = grid.querySelector(`.rp-item[data-i="${i}"]`);
-    if (itemEl) itemEl.style.visibility = "visible";
-    for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) {
-      const cover = grid.querySelector(`.rp-cell[data-x="${d.x + dx}"][data-y="${d.y + dy}"]`);
-      if (cover) cover.remove();
+    const el = $("#rpGrid").querySelector(`.rp-item[data-i="${i}"]`);
+    if (el) {
+      el.classList.remove("rp-silhouette", "searching");
+      el.classList.add("g" + d.item.grade, "revealed");
+      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】`;
+      el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
     }
+    ov.staging.push(d);
     ov.value += d.item.value;
     $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
     const panel = $("#raidPanel");
@@ -580,6 +586,8 @@
       $("#rpMsg").textContent = DFR.RAID_LINES.gold;
       panel.classList.remove("flash-gold"); void panel.offsetWidth; panel.classList.add("flash-gold");
     }
+    renderStaging(ov);
+    checkAllRevealed(ov);
   }
 
   function renderStaging(ov) {
@@ -611,6 +619,10 @@
       return;
     }
     ov.staging.splice(i, 1);
+    d.taken = true;
+    const gi = ov.c.drops.indexOf(d);
+    const gel = $("#rpGrid").querySelector(`.rp-item[data-i="${gi}"]`);
+    if (gel) gel.classList.add("taken");
     Sfx.pickup();
     DF_APP.toast(act === "safe" ? `「${d.item.name}」进安全箱，稳了` : `「${d.item.name}」入包`);
     renderStaging(ov);
@@ -621,10 +633,10 @@
   function closeSearch() {
     const ov = Raid.overlay;
     if (!ov) return;
-    if (!ov.done) { ov.cancelled = true; } // 未揭完就走：剩余货直接算放弃
+    ov.cancelled = true;
     Sfx.rustleStop();
-    $("#rpSearching").classList.add("hidden");
-    if (ov.staging.length && ov.done) DF_APP.toast(`${ov.staging.length} 件带不走，留给下一只鼠了`);
+    const left = ov.c.drops.filter((d) => !d.revealed).length + ov.staging.length;
+    if (left) DF_APP.toast(`${left} 件带不走，留给下一只鼠了`);
     const run = Raid.run;
     ov.c.searched = true;
     run.searched++;
@@ -668,6 +680,13 @@
       rec.status = outcome === "extracted" ? "won" : "lost";
       DF_APP.store.set(key, JSON.stringify(rec));
     }
+    // 关卡记录（每关历史最佳）
+    if (run.mode === "levels") {
+      const best = DF_APP.loadJSON("df_raid_level_best", {});
+      const id = DFR.LEVELS[run.level].id;
+      best[id] = Math.max(best[id] || 0, value);
+      DF_APP.store.set("df_raid_level_best", JSON.stringify(best));
+    }
 
     renderResult(outcome, value, mainV, safeV, kept);
     renderCollection();
@@ -687,6 +706,7 @@
     if (outcome === "extracted") metaParts.push(`背包【${DFR.fmt(mainV)}】+ 安全箱【${DFR.fmt(safeV)}】`);
     else metaParts.push(`安全箱保住【${DFR.fmt(safeV)}】` + (mainV ? `，背包【${DFR.fmt(mainV)}】喂了猛攻队` : ""));
     if (bestItem) metaParts.push(`最肥一件：${bestItem.name}`);
+    const hasNext = run.mode === "levels" && outcome === "extracted" && run.level < DFR.LEVELS.length - 1;
     $("#raidResult").innerHTML = `
       <h2>${titles[outcome]}</h2>
       <p class="r-meta">${metaParts.join(" · ")}</p>
@@ -694,17 +714,24 @@
       <p class="r-meta">${dailyRec ? `今日最佳【${DFR.fmt(dailyRec.best)}】 · ` : ""}历史最佳【${DFR.fmt(DF_APP.loadJSON("df_raid_best", 0))}】</p>
       <div class="btn-row">
         <button class="btn" id="raidShareBtn">复制分享卡</button>
-        <button class="btn ghost" id="raidAgainBtn">再来一局（${run.mode === "daily" ? "今日同图" : "随机新图"} · 不限次）</button>
+        <button class="btn ghost" id="raidAgainBtn">再来一局（${run.mode === "daily" ? "今日同图" : run.mode === "levels" ? "本关同图" : "随机新图"} · 不限次）</button>
+        ${hasNext ? `<button class="btn" id="raidNextBtn">下一关：${DFR.LEVELS[run.level + 1].name} →</button>` : ""}
       </div>`;
     $("#raidResult").classList.remove("hidden");
     $("#raidShareBtn").onclick = () => DF_APP.copyText(DFR.buildRaidShare({
       date: DF_APP.TODAY, practice: run.mode === "practice", outcome, value,
       searched: run.searched, total: run.containers.length,
       bestItemName: bestItem ? bestItem.name : null,
+      mapName: run.mode === "levels" ? DFR.LEVELS[run.level].name : null,
     }));
     $("#raidAgainBtn").onclick = () => {
       Raid.run = newRun(Raid.mode);
       renderAll();
+    };
+    if (hasNext) $("#raidNextBtn").onclick = () => {
+      Raid.level++;
+      Raid.run = null;
+      render();
     };
     setTip("本局结束 —— " + (outcome === "extracted" ? "肥肥撤离，下把更肥" : "鼠鼠落泪，下把再来"));
   }
@@ -727,11 +754,32 @@
   }
 
   // ---------- 渲染入口 ----------
+  function renderLevels() {
+    const el = $("#raidLevels");
+    el.classList.toggle("hidden", Raid.mode !== "levels");
+    if (Raid.mode !== "levels") return;
+    const best = DF_APP.loadJSON("df_raid_level_best", {});
+    const CN = ["一", "二", "三", "四"];
+    el.innerHTML = DFR.LEVELS.map((lv, i) => `
+      <button class="raid-level${i === Raid.level ? " active" : ""}" data-i="${i}">
+        <b>第${CN[i]}关 · ${lv.name}</b>
+        <span>${lv.desc}</span>
+        <span class="rl-best">${best[lv.id] ? "最佳【" + DFR.fmt(best[lv.id]) + "】" : "——"}</span>
+      </button>`).join("");
+    el.querySelectorAll(".raid-level").forEach((b) =>
+      b.addEventListener("click", () => { Raid.level = Number(b.dataset.i); Raid.run = null; render(); }));
+  }
+
   function renderAll() {
     const run = Raid.run;
+    const cv = canvas();
+    cv.width = run.map.w * TS;
+    cv.height = run.map.h * TS;
     $("#raidBanner").innerHTML = run.mode === "daily"
-      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图同掉落 · 倒计时 ${DFR.RAID_SECONDS} 秒`
-      : `练习模式 · 随机地图 · 不计入每日成绩`;
+      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图同掉落 · 倒计时 ${run.map.cfg.seconds} 秒`
+      : run.mode === "levels"
+        ? `第 ${run.level + 1} 关 · <b>${DFR.LEVELS[run.level].name}</b> · ${DFR.LEVELS[run.level].desc} · 固定地图 · 倒计时 ${run.map.cfg.seconds} 秒`
+        : `练习模式 · 随机地图（${run.practiceName}规格）· 倒计时 ${run.map.cfg.seconds} 秒 · 不计入每日成绩`;
     $("#raidStory").textContent = run.story;
     $("#raidResult").classList.add("hidden");
     $("#raidExtractBar").classList.add("hidden");
@@ -739,10 +787,12 @@
     renderBags();
     onEnterTile();
     renderCollection();
+    renderLevels();
   }
 
   function render() {
-    if (!Raid.run || Raid.run.mode !== Raid.mode) Raid.run = newRun(Raid.mode);
+    if (!Raid.run || Raid.run.mode !== Raid.mode ||
+        (Raid.mode === "levels" && Raid.run.level !== Raid.level)) Raid.run = newRun(Raid.mode);
     renderAll();
     loopStart();
   }
@@ -765,7 +815,7 @@
 
   // ---------- 启动 ----------
   bindInput();
-  $("#rpSkip").addEventListener("click", () => { if (Raid.overlay) Raid.overlay.skip = true; });
+  $("#rpSkip").addEventListener("click", () => { if (Raid.overlay) { Raid.overlay.auto = true; searchAll(Raid.overlay); } });
   $("#rpClose").addEventListener("click", closeSearch);
   if (location.hash === "#/raid") { Raid.active = true; render(); }
 })();

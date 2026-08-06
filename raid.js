@@ -29,6 +29,24 @@
 
   const MEME_TEXT = "座钟？？谁把送终的玩意儿塞这了";
 
+  /*
+   * 关卡配置（图名用官方烽火地带地图名）。cfg 字段：
+   * w/h 地图格数 · seconds 倒计时 · extractMs 撤离引导 · obs 障碍块数区间
+   * tiers 必出高价值容器 tier 列表（不足 total 的用 tier1 补齐）
+   * total 容器总数区间 · patrols 巡逻队数区间 · radius 视野半径区间
+   */
+  const LEVELS = [
+    { id: "dam", name: "零号大坝·外围", desc: "教学关：图小巡逻少，时间宽裕",
+      cfg: { w: 20, h: 13, seconds: 300, extractMs: 4000, obs: [5, 8], tiers: [6, 5, 5], total: [8, 10], patrols: [1, 2], radius: [3, 3] } },
+    { id: "valley", name: "长弓溪谷", desc: "标准局：经典尺寸，两队巡逻",
+      cfg: { w: MAP_W, h: MAP_H, seconds: RAID_SECONDS, extractMs: EXTRACT_MS, obs: [8, 12], tiers: [6, 6, 5, 5, 5, 5], total: [10, 14], patrols: [2, 3], radius: [3, 4] } },
+    { id: "brakkesh", name: "巴克什", desc: "大图多巡逻，高价值容器更多",
+      cfg: { w: 28, h: 18, seconds: 300, extractMs: 6000, obs: [10, 15], tiers: [6, 6, 5, 5, 5, 5, 5], total: [13, 16], patrols: [3, 4], radius: [3, 4] } },
+    { id: "space", name: "航天基地", desc: "最大图、重兵把守、引导最久",
+      cfg: { w: 32, h: 20, seconds: 330, extractMs: 7000, obs: [14, 20], tiers: [6, 6, 6, 5, 5, 5, 5, 5], total: [15, 19], patrols: [4, 5], radius: [3, 4] } },
+  ];
+  const DEFAULT_CFG = LEVELS[1].cfg;
+
   // 评级：按带出价值分档
   const RAID_GRADES = [
     { min: 2000000, g: "SS", name: "鼠王登神" },
@@ -136,18 +154,19 @@
   // ---------- 地图生成 ----------
 
   /*
-   * 生成一局地图：边界墙 + 内部障碍块 + 出生点（左端）+ 2 个撤离点（右端上下）
-   * + 10~14 个容器（tier6×2、tier5×4、其余 tier1）+ 2~3 条巡逻往返路径。
+   * 生成一局地图（布局由 cfg 决定尺寸与难度）：边界墙 + 内部障碍块 + 出生点（左端）
+   * + 2 个撤离点（右端上下）+ 容器（cfg.tiers 必出，tier1 补齐）+ cfg.patrols 条巡逻往返路径。
    * 返回 null 表示本次随机布局不可用（调用方换种子重试）。
    */
-  function tryGenMap(rng, loot) {
-    const W = MAP_W, H = MAP_H;
+  function tryGenMap(rng, loot, cfg) {
+    cfg = cfg || DEFAULT_CFG;
+    const W = cfg.w, H = cfg.h;
     const tiles = makeGrid(W, H, 0);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       if (x === 0 || y === 0 || x === W - 1 || y === H - 1) tiles[y][x] = 1;
     }
     // 内部障碍块
-    const nObs = 8 + Math.floor(rng() * 5);
+    const nObs = cfg.obs[0] + Math.floor(rng() * (cfg.obs[1] - cfg.obs[0] + 1));
     for (let i = 0; i < nObs; i++) {
       const ow = 1 + Math.floor(rng() * 3), oh = 1 + Math.floor(rng() * 2);
       const ox = 1 + Math.floor(rng() * (W - 2 - ow)), oy = 1 + Math.floor(rng() * (H - 2 - oh));
@@ -176,11 +195,12 @@
     }
     if (extracts[0].x === extracts[1].x && extracts[0].y === extracts[1].y) return null;
 
-    // 容器：tier6×2 + tier5×4 + 其余 tier1，共 10~14 个
+    // 容器：cfg.tiers 必出 + 其余 tier1，总数在 cfg.total 区间内
     const byTier = { 1: [], 5: [], 6: [] };
     loot.containers.forEach((c) => { if (byTier[c.tier]) byTier[c.tier].push(c); });
-    const total = 10 + Math.floor(rng() * 5);
-    const tierList = [6, 6, 5, 5, 5, 5];
+    const tierList = cfg.tiers.slice();
+    let total = cfg.total[0] + Math.floor(rng() * (cfg.total[1] - cfg.total[0] + 1));
+    total = Math.max(total, tierList.length);
     while (tierList.length < total) tierList.push(1);
     DFG.shuffle(tierList, rng);
 
@@ -211,9 +231,9 @@
     const containerAt = new Set(containers.map((c) => c.x + "," + c.y));
     const walkable = (x, y) => free(x, y) && !containerAt.has(x + "," + y);
 
-    // 巡逻队：2~3 条直线往返路径
+    // 巡逻队：cfg.patrols 条直线往返路径
     const patrols = [];
-    const nPatrol = 2 + (rng() < 0.5 ? 1 : 0);
+    const nPatrol = cfg.patrols[0] + Math.floor(rng() * (cfg.patrols[1] - cfg.patrols[0] + 1));
     for (let p = 0; p < nPatrol; p++) {
       let path = null;
       for (let g = 0; g < 300 && !path; g++) {
@@ -234,10 +254,11 @@
         if (seg.length >= 4 && seg.every((t) => extracts.every((e) => manhattan(t, e) >= 3))) path = seg;
       }
       if (!path) return null;
-      patrols.push({ path, radius: rng() < 0.4 ? 4 : 3 });
+      const radius = cfg.radius[0] + (cfg.radius[1] > cfg.radius[0] && rng() < 0.4 ? cfg.radius[1] - cfg.radius[0] : 0);
+      patrols.push({ path, radius });
     }
 
-    return { w: W, h: H, tiles, spawn, extracts, containers, patrols };
+    return { w: W, h: H, tiles, spawn, extracts, containers, patrols, cfg };
   }
 
   // 连通性验证：出生点可达所有撤离点，且每个容器都有可达的相邻站位
@@ -257,11 +278,12 @@
     return true;
   }
 
-  // 生成入口：同种子必然同图；布局不合法时种子递增重试
-  function generateRaid(seed, loot) {
+  // 生成入口：同种子必然同图；布局不合法时种子递增重试；cfg 缺省 = 长弓溪谷（标准局）
+  function generateRaid(seed, loot, cfg) {
+    cfg = cfg || DEFAULT_CFG;
     for (let attempt = 0; attempt < 300; attempt++) {
       const rng = DFG.mulberry32((seed + attempt * 7919) >>> 0);
-      const map = tryGenMap(rng, loot);
+      const map = tryGenMap(rng, loot, cfg);
       if (map && validateMap(map)) { map.seed = seed; map.attempt = attempt; return map; }
     }
     throw new Error("generateRaid: 300 次重试仍无合法地图");
@@ -366,9 +388,9 @@
   // ---------- 分享卡 ----------
 
   function buildRaidShare(opts) {
-    const { date, practice, outcome, value, searched, total, bestItemName } = opts;
+    const { date, practice, outcome, value, searched, total, bestItemName, mapName } = opts;
     const grade = raidGrade(value);
-    const label = practice ? "鼠鼠摸金·练习" : `鼠鼠摸金 #${date}`;
+    const label = mapName ? `鼠鼠摸金·${mapName}` : practice ? "鼠鼠摸金·练习" : `鼠鼠摸金 #${date}`;
     const outcomeLine = outcome === "extracted"
       ? `🐭 肥肥撤离！带出【${fmt(value)}】`
       : outcome === "caught"
@@ -388,6 +410,7 @@
     MAP_W, MAP_H, RAID_SECONDS, EXTRACT_MS, EXTRACT_INTERRUPT_DIST,
     PATROL_STEP_MS, PLAYER_STEP_MS,
     REVEAL_SEC, BIG_CELLS, BIG_PAUSE_MS, MEME_TEXT, RAID_GRADES, RAID_LINES,
+    LEVELS, DEFAULT_CFG,
     raidGrade, fmt, dailySeed,
     makeGrid, bfsReachable, findPath, losClear,
     tryGenMap, validateMap, generateRaid, makeSolidFn,

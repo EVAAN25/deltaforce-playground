@@ -244,10 +244,12 @@
       <h2>🐭 鼠鼠摸金</h2>
       <div class="mode-tabs" data-game="raid">
         <button class="mode-tab active" data-mode="daily">每日一图</button>
+        <button class="mode-tab" data-mode="levels">关卡模式</button>
         <button class="mode-tab" data-mode="practice">练习模式</button>
       </div>
     </div>
     <p class="mode-banner" id="raidBanner"></p>
+    <div class="raid-levels hidden" id="raidLevels"></div>
     <p class="raid-credit">玩法与容器设定参考 B 站 Toy 作品《三角洲小涛查-鼠鼠偷吃模拟器》（orzice.com）；物品为官方图鉴快照数据，价格为三角洲数据帝真实交易行快照（2026-01-10）；容器掉落概率为同人自设，非官方概率。</p>
 
     <div class="raid-hud">
@@ -284,14 +286,13 @@
       <div class="raid-panel" id="raidPanel">
         <div class="rp-head">
           <h3 id="rpTitle">容器</h3>
-          <span class="rp-searching hidden" id="rpSearching">🔍 正在搜索<span class="rp-dots"></span></span>
           <div class="rp-value" id="rpValue">价值【0】</div>
         </div>
         <div class="rp-grid-wrap"><div class="rp-grid" id="rpGrid"></div></div>
         <p class="rp-msg" id="rpMsg"></p>
         <div class="rp-staging" id="rpStaging"></div>
         <div class="rp-actions">
-          <button class="btn ghost" id="rpSkip">全部揭开 ⏩</button>
+          <button class="btn ghost" id="rpSkip">全部搜索 ⏩</button>
           <button class="btn hidden" id="rpClose">收工走人 🏃</button>
         </div>
       </div>
@@ -306,10 +307,11 @@
       <summary>规则说明</summary>
       <ul>
         <li>WASD / 方向键逐格移动，或点击格子自动寻路；走到容器相邻格按 <b>E</b>（或直接点容器）开搜。</li>
-        <li>搜索逐格开奖：单格耗时按品质递增，「正在搜索」的格子有进度条和翻找声，金 / 红出货有专属音效与光效；搜出的货先进待拾取区，点「入包 / 入箱」取舍——背包格子有限，单格价值（性价比）是关键。</li>
-        <li>主背包 6×4，被抓全部掉光；安全箱 2×2，死了迷失也保住。每个容器每局只能搜一次。</li>
-        <li>猛攻队沿固定路线巡逻，有视野半径且会被墙和容器挡住；被看见＝被一脚踢死，本局结束。倒计时 240 秒，超时＝迷失，同样结束。</li>
-        <li>站到撤离点按 <b>E</b> 引导 5 秒撤离：被猛攻队看见会<b>暂停</b>引导（进度保留，它走远自动继续），自己走动则引导取消重来。带出价值 = 背包 + 安全箱合计，按价值评级 C / B / A / S / SS。</li>
+        <li>搜索还原官方形态：开箱即见全部物品<b>剪影</b>（占格形状可预判大件），<b>逐件点击</b>鉴定——放大镜转圈 + 翻找声，转得越久越值钱；揭晓按品质配音效（金双叮、红三连叮 + 光效）。也可点「全部搜索」自动逐件鉴定。</li>
+        <li>搜出的货先进待拾取区，点「入包 / 入箱」取舍——背包格子有限，单格价值（性价比）是关键。主背包 6×4，被抓全部掉光；安全箱 2×2，死了迷失也保住。每个容器每局只能搜一次。</li>
+        <li>猛攻队沿固定路线巡逻，有视野半径且会被墙和容器挡住；被看见＝被一脚踢死，本局结束。倒计时耗尽＝迷失，同样结束。</li>
+        <li>站到撤离点按 <b>E</b> 引导撤离：被猛攻队看见会<b>暂停</b>引导（进度保留，它走远自动继续），自己走动则引导取消重来。带出价值 = 背包 + 安全箱合计，按价值评级 C / B / A / S / SS。</li>
+        <li>关卡模式：零号大坝 → 长弓溪谷 → 巴克什 → 航天基地，图越来越大、巡逻越来越多、引导越来越久；每关固定地图，记录每关历史最佳。</li>
         <li>每日一图按本地日期生成，同一天所有人同图同掉落；练习模式随机图不限次。进度与图鉴存在本机浏览器里。</li>
       </ul>
     </details>

@@ -467,6 +467,25 @@ ok("鼠鼠摸金：多种子地图全连通（出生点可达所有容器与撤�
   }
 });
 
+ok("鼠鼠摸金：四关地图生成合法（尺寸/难度参数生效、巡逻不贴撤离点、关卡互不相同）", () => {
+  DFR.LEVELS.forEach((lv, i) => {
+    const map = DFR.generateRaid(DFG.hash32("df-raid-level:" + lv.id), DF_LOOT, lv.cfg);
+    assert.strictEqual(map.w, lv.cfg.w, lv.id + " 宽");
+    assert.strictEqual(map.h, lv.cfg.h, lv.id + " 高");
+    assert(DFR.validateMap(map), lv.id + " 不连通");
+    assert(map.patrols.length >= lv.cfg.patrols[0] && map.patrols.length <= lv.cfg.patrols[1], lv.id + " 巡逻数");
+    assert(map.containers.length >= lv.cfg.total[0], lv.id + " 容器数");
+    const t6 = map.containers.filter((c) => c.tier === 6).length;
+    assert.strictEqual(t6, lv.cfg.tiers.filter((t) => t === 6).length, lv.id + " tier6 数");
+    for (const p of map.patrols) for (const t of p.path) for (const e of map.extracts)
+      assert(Math.abs(t.x - e.x) + Math.abs(t.y - e.y) >= 3, lv.id + " 巡逻贴撤离点");
+    if (i > 0) {
+      const prev = DFR.generateRaid(DFG.hash32("df-raid-level:" + DFR.LEVELS[i - 1].id), DF_LOOT, DFR.LEVELS[i - 1].cfg);
+      assert.notDeepStrictEqual(map.tiles, prev.tiles, "相邻关卡地图雷同");
+    }
+  });
+});
+
 ok("鼠鼠摸金：每日种子确定性（同种子同图同掉落）", () => {
   const seed = DFR.dailySeed("2026-08-05");
   const m1 = DFR.generateRaid(seed, DF_LOOT);
@@ -583,6 +602,8 @@ ok("鼠鼠摸金：分享卡格式（撤离/被抓/迷失三种结局）", () =>
   assert(t2.includes("💀") && t2.includes("【12,345】") && t2.includes("评级 C"));
   const t3 = DFR.buildRaidShare({ date: "2026-08-05", practice: true, outcome: "lost", value: 0, searched: 0, total: 12 });
   assert(t3.includes("⏱") && t3.includes("练习"));
+  const t4 = DFR.buildRaidShare({ date: "2026-08-05", outcome: "extracted", value: 500000, searched: 8, total: 15, mapName: "巴克什" });
+  assert(t4.includes("鼠鼠摸金·巴克什") && !t4.includes("#2026-08-05"), "关卡分享卡标题");
   console.log("---- 鼠鼠摸金分享卡示例 ----\n" + t1 + "\n----------------------------");
 });
 
