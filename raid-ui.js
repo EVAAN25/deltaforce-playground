@@ -53,9 +53,9 @@
       src.buffer = noise(); src.loop = true;
       const bp = c.createBiquadFilter();
       bp.type = "bandpass"; bp.frequency.value = 1900; bp.Q.value = 0.8;
-      const g = c.createGain(); g.gain.value = 0.1;
+      const g = c.createGain(); g.gain.value = 0.05;
       const lfo = c.createOscillator(); lfo.type = "triangle"; lfo.frequency.value = 8.5;
-      const lfoG = c.createGain(); lfoG.gain.value = 0.075;
+      const lfoG = c.createGain(); lfoG.gain.value = 0.038;
       lfo.connect(lfoG); lfoG.connect(g.gain);
       src.connect(bp); bp.connect(g); g.connect(master);
       src.start(); lfo.start();
