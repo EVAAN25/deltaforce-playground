@@ -45,7 +45,7 @@
       }
       return noiseBuf;
     }
-    // 翻找声：循环噪声 + 带通 + 增益抖动，模拟窸窸窣窣
+    // 翻找声「鼠鼠祟祟」：循环噪声 + 带通 + 增益抖动，模拟窸窸窣窣（合成版，先保留）
     function rustleStart() {
       const c = ac(); if (!c) return;
       rustleStop();
@@ -75,14 +75,27 @@
       o.connect(g); g.connect(master);
       o.start(at); o.stop(at + dur + 0.05);
     }
-    // 出货音：官方是清脆的"叮"声按品质分层——红三连叮、金双叮、紫单叮、低品质短tick
+    // 出货音：真实音频（来自 ItemLevelAndSearchSoundMod，assets/sfx/），按品质分层
+    const REVEAL_SRC = {
+      1: "assets/sfx/reveal-low.mp3", 2: "assets/sfx/reveal-low.mp3", 3: "assets/sfx/reveal-low.mp3",
+      4: "assets/sfx/reveal-purple.mp3", 5: "assets/sfx/reveal-gold.mp3", 6: "assets/sfx/reveal-red.mp3",
+    };
+    const revealCache = {};
     function ding(grade) {
-      const c = ac(); if (!c) return;
-      const t = c.currentTime;
-      if (grade >= 6) { blip(987.8, t, 0.12, "sine", 0.22); blip(1174.7, t + 0.09, 0.12, "sine", 0.2); blip(1480, t + 0.18, 0.32, "sine", 0.2); }
-      else if (grade === 5) { blip(880, t, 0.12, "sine", 0.2); blip(1174.7, t + 0.09, 0.24, "sine", 0.17); }
-      else if (grade === 4) blip(784, t, 0.11, "sine", 0.15);
-      else blip(340 + grade * 70, t, 0.06, "triangle", 0.12);
+      const src = REVEAL_SRC[grade] || REVEAL_SRC[1];
+      let a = revealCache[src];
+      if (!a) { a = new Audio(src); a.preload = "auto"; revealCache[src] = a; }
+      a.currentTime = 0;
+      a.volume = 0.85;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => { // 自动播放被拦时用合成音兜底
+        const c = ac(); if (!c) return;
+        const t = c.currentTime;
+        if (grade >= 6) { blip(987.8, t, 0.12, "sine", 0.22); blip(1174.7, t + 0.09, 0.12, "sine", 0.2); blip(1480, t + 0.18, 0.32, "sine", 0.2); }
+        else if (grade === 5) { blip(880, t, 0.12, "sine", 0.2); blip(1174.7, t + 0.09, 0.24, "sine", 0.17); }
+        else if (grade === 4) blip(784, t, 0.11, "sine", 0.15);
+        else blip(340 + grade * 70, t, 0.06, "triangle", 0.12);
+      });
     }
     // 入包/入箱：短促"咔哒"
     function pickup() {
@@ -497,14 +510,15 @@
 
     $("#rpTitle").innerHTML = `${c.name}<span class="rp-tier">${TIER_NAME[c.tier]} · ${c.w}×${c.h}</span>`;
     $("#rpValue").textContent = "价值【0】";
-    $("#rpMsg").textContent = c.drops.length ? "点一件货开始鉴定 —— 转得越久越值钱" : "这容器比鼠鼠的脸还干净……";
+    $("#rpMsg").textContent = c.drops.length ? "民以食为天，开吃！—— 转得越久越值钱" : "这容器比鼠鼠的脸还干净……";
     $("#rpStaging").innerHTML = "";
     $("#rpClose").classList.remove("hidden");
-    $("#rpSkip").classList.toggle("hidden", !c.drops.length);
+    $("#rpSkip").classList.add("hidden"); // 开箱即自动逐件搜索，无需手动
 
-    // 官方：开箱即见全部物品剪影（占格形状可见，可预判大件），点击才鉴定
+    // 官方：开箱即见全部物品剪影（占格形状可见，可预判大件），随后自动逐件鉴定
     const grid = $("#rpGrid");
     grid.style.gridTemplateColumns = `repeat(${c.w}, 44px)`;
+    grid.style.gridAutoRows = "44px";
     const occ = DFR.makeGrid(c.w, c.h, 0);
     c.drops.forEach((d) => {
       for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
@@ -519,7 +533,9 @@
     grid.querySelectorAll(".rp-silhouette").forEach((el) =>
       el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
     $("#raidOverlay").classList.remove("hidden");
-    if (!c.drops.length) ov.done = true;
+    if (!c.drops.length) { ov.done = true; return; }
+    ov.auto = true; // 交互后直接开始，逐件自动鉴定
+    searchAll(ov);
   }
 
   // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
