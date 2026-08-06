@@ -456,7 +456,14 @@ ok("鼠鼠摸金：多种子地图全连通（出生点可达所有容器与撤�
     assert.strictEqual(t6, 2, "tier6 数 " + seed);
     assert.strictEqual(t5, 4, "tier5 数 " + seed);
     assert(map.patrols.length >= 2 && map.patrols.length <= 3, "巡逻队数 " + seed);
-    for (const p of map.patrols) assert(p.path.length >= 4 && (p.radius === 3 || p.radius === 4));
+    for (const p of map.patrols) {
+      assert(p.path.length >= 4 && (p.radius === 3 || p.radius === 4));
+      // 巡逻路线必须远离撤离点，否则撤离引导被压死、没法撤离
+      for (const t of p.path) for (const e of map.extracts) {
+        assert(Math.abs(t.x - e.x) + Math.abs(t.y - e.y) >= 3,
+          `巡逻贴撤离点 seed=${seed} (${t.x},${t.y})->(${e.x},${e.y})`);
+      }
+    }
   }
 });
 

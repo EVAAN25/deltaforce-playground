@@ -373,6 +373,8 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   position: relative; display: flex; align-items: center; justify-content: center;
   height: 100%; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.6);
 }
+.raid-extract.paused { border-color: var(--g6); animation: re-paused .5s ease-in-out infinite alternate; }
+@keyframes re-paused { from { box-shadow: var(--shadow-layer); } to { box-shadow: 0 0 18px 3px rgba(208, 75, 58, .6); } }
 .raid-tip { text-align: center; font-size: 13px; color: var(--ink-soft); margin-top: 10px; min-height: 1.6em; }
 .raid-tip b { color: var(--orange); }
 .raid-story {
@@ -449,6 +451,24 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
   font-size: 18px; position: relative; z-index: 2;
 }
+/* 正在搜索：格子脉冲 + 底部进度条（时长由 JS 写 --rd） */
+.rp-cell.searching { border-color: var(--orange); animation: rp-pulse .45s ease-in-out infinite alternate; }
+.rp-cell.searching::after {
+  content: ""; position: absolute; left: 4px; right: 4px; bottom: 4px; height: 3px;
+  background: var(--orange); border-radius: 2px; transform-origin: left;
+  animation: rp-prog var(--rd, .6s) linear both;
+}
+@keyframes rp-pulse { from { background: var(--bg-deep); } to { background: rgba(224, 138, 60, .22); } }
+@keyframes rp-prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* 「正在搜索」标签 */
+.rp-searching {
+  font-size: 12px; font-weight: 700; color: var(--orange);
+  border: 1px solid var(--orange-deep); border-radius: 999px; padding: 2px 10px;
+  background: rgba(224, 138, 60, .1); white-space: nowrap;
+}
+.rp-searching.done { color: var(--g2); border-color: var(--g2); background: rgba(95, 174, 99, .1); }
+.rp-dots::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: rp-dots 1s steps(1) infinite; }
+@keyframes rp-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
 .rp-item {
   border-radius: 6px; border: 1px solid; z-index: 1; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;

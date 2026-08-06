@@ -18,7 +18,7 @@
   const MAP_H = 16;
   const RAID_SECONDS = 240;      // 局内倒计时
   const EXTRACT_MS = 5000;       // 撤离引导时长
-  const EXTRACT_INTERRUPT_DIST = 5; // 巡逻队接近此距离打断引导
+  const EXTRACT_INTERRUPT_DIST = 5; // 巡逻队在此距离内且看得见玩家时，引导暂停（进度保留）
   const PATROL_STEP_MS = 550;    // 巡逻队走一格的间隔（UI 用）
   const PLAYER_STEP_MS = 140;    // 玩家走一格的间隔（UI 用）
 
@@ -48,7 +48,7 @@
     caught: "你被猛攻队一脚踢死了！主背包撒了一地，只保住了安全箱……",
     lost: "倒计时归零，鼠鼠迷失在了禁区里……",
     extracted: "肥肥撤离！这波不亏，下波更肥。",
-    interrupt: "猛攻队逼近，撤离引导被打断！",
+    interrupt: "猛攻队看过来了，引导暂停！进度保留，等它走远自动继续。",
     gold: "出金了！！",
     red: "大红！！鼠鼠我呀，要发财了！",
   };
@@ -230,7 +230,8 @@
             cx = nx; cy = ny;
           }
         }
-        if (seg.length >= 4) path = seg;
+        // 巡逻路线必须离撤离点 >=3 格，否则撤离引导永远被压，没法撤离
+        if (seg.length >= 4 && seg.every((t) => extracts.every((e) => manhattan(t, e) >= 3))) path = seg;
       }
       if (!path) return null;
       patrols.push({ path, radius: rng() < 0.4 ? 4 : 3 });

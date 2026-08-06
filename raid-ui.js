@@ -22,6 +22,75 @@
     return `<img loading="lazy" src="${item.img}" alt="${item.name}" data-name="${item.name}" data-grade="${item.grade}" onerror="window.__dfRaidImg(this)">`;
   }
 
+  // ---------- 音效（WebAudio 合成，无外部资源；首次开箱/按键时激活） ----------
+  const Sfx = (() => {
+    let ctx = null, master = null, noiseBuf = null, rustle = null;
+    function ac() {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!ctx) {
+        ctx = new AC();
+        master = ctx.createGain();
+        master.gain.value = 0.5;
+        master.connect(ctx.destination);
+      }
+      if (ctx.state === "suspended") ctx.resume();
+      return ctx;
+    }
+    function noise() {
+      if (!noiseBuf) {
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      }
+      return noiseBuf;
+    }
+    // 翻找声：循环噪声 + 带通 + 增益抖动，模拟窸窸窣窣
+    function rustleStart() {
+      const c = ac(); if (!c) return;
+      rustleStop();
+      const src = c.createBufferSource();
+      src.buffer = noise(); src.loop = true;
+      const bp = c.createBiquadFilter();
+      bp.type = "bandpass"; bp.frequency.value = 1900; bp.Q.value = 0.8;
+      const g = c.createGain(); g.gain.value = 0.1;
+      const lfo = c.createOscillator(); lfo.type = "triangle"; lfo.frequency.value = 8.5;
+      const lfoG = c.createGain(); lfoG.gain.value = 0.075;
+      lfo.connect(lfoG); lfoG.connect(g.gain);
+      src.connect(bp); bp.connect(g); g.connect(master);
+      src.start(); lfo.start();
+      rustle = { src, lfo };
+    }
+    function rustleStop() {
+      if (!rustle) return;
+      try { rustle.src.stop(); rustle.lfo.stop(); } catch (e) { /* 已停止 */ }
+      rustle = null;
+    }
+    function blip(freq, at, dur, type, vol) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(vol, at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+      o.connect(g); g.connect(master);
+      o.start(at); o.stop(at + dur + 0.05);
+    }
+    // 出货音：品质越高越华丽（金/红双音上扬）
+    function ding(grade) {
+      const c = ac(); if (!c) return;
+      const t = c.currentTime;
+      if (grade >= 6) { blip(880, t, 0.14, "sine", 0.22); blip(1318.5, t + 0.09, 0.3, "sine", 0.2); }
+      else if (grade === 5) { blip(784, t, 0.11, "sine", 0.2); blip(1174.7, t + 0.08, 0.2, "sine", 0.16); }
+      else blip(340 + grade * 70, t, 0.06, "triangle", 0.12);
+    }
+    // 入包/入箱：短促"咔哒"
+    function pickup() {
+      const c = ac(); if (!c) return;
+      blip(520, c.currentTime, 0.06, "square", 0.09);
+    }
+    return { rustleStart, rustleStop, ding, pickup };
+  })();
+
   // ---------- 状态 ----------
   const Raid = { mode: "daily", run: null, active: false, overlay: null, keys: {}, tickTimer: null, rafId: 0 };
 
@@ -45,7 +114,7 @@
       bagMain: DFR.makeBag(6, 4),
       bagSafe: DFR.makeBag(2, 2),
       status: "playing", outcome: null,
-      extracting: 0, searched: 0,
+      extracting: 0, extractAcc: 0, extractPaused: false, searched: 0,
       story: DFR.RAID_LINES.intro[Math.floor(introRng() * DFR.RAID_LINES.intro.length)],
     };
   }
@@ -179,7 +248,10 @@
       if (step) {
         run.px = step.x; run.py = step.y;
         run.nextStep = now + DFR.PLAYER_STEP_MS;
-        if (run.extracting) { run.extracting = 0; updateExtractBar(); } // 移动打断引导
+        if (run.extracting) { // 移动取消引导：进度清零重来
+          run.extracting = 0; run.extractAcc = 0; run.extractPaused = false;
+          updateExtractBar();
+        }
         onEnterTile();
         detect();
         // 点容器寻路到位后自动开搜
@@ -306,6 +378,8 @@
     if (onExtract) {
       if (!run.extracting) {
         run.extracting = performance.now();
+        run.extractAcc = 0;
+        run.extractPaused = false;
         run.queue = [];
         updateExtractBar();
         DF_APP.toast("撤离引导开始，别动！");
@@ -316,17 +390,23 @@
     if (c) openSearch(c);
   }
 
+  // 巡逻队"看见"玩家（距离内 + 无遮挡）→ 引导暂停，进度保留；走远后自动继续
   function checkExtract(now) {
     const run = Raid.run;
-    for (const p of run.patrols) {
-      if (Math.hypot(run.px - p.x, run.py - p.y) <= DFR.EXTRACT_INTERRUPT_DIST) {
-        run.extracting = 0;
-        updateExtractBar();
+    const threat = run.patrols.some((p) =>
+      Math.hypot(run.px - p.x, run.py - p.y) <= DFR.EXTRACT_INTERRUPT_DIST &&
+      DFR.losClear(run.solid, p.x, p.y, run.px, run.py));
+    if (threat) {
+      if (!run.extractPaused) {
+        run.extractAcc += now - run.extracting;
+        run.extractPaused = true;
         DF_APP.toast(DFR.RAID_LINES.interrupt);
-        return;
       }
+      updateExtractBar();
+      return;
     }
-    if (now - run.extracting >= DFR.EXTRACT_MS) finish("extracted");
+    if (run.extractPaused) { run.extractPaused = false; run.extracting = now; }
+    if (run.extractAcc + (now - run.extracting) >= DFR.EXTRACT_MS) finish("extracted");
   }
 
   function updateExtractBar() {
@@ -334,7 +414,10 @@
     const bar = $("#raidExtractBar");
     if (!run || !run.extracting) { bar.classList.add("hidden"); return; }
     bar.classList.remove("hidden");
-    const pct = Math.min(100, (performance.now() - run.extracting) / DFR.EXTRACT_MS * 100);
+    bar.classList.toggle("paused", run.extractPaused);
+    bar.querySelector(".re-text").textContent = run.extractPaused ? "猛攻队逼近——引导暂停（进度保留）" : "撤离引导中……";
+    const done = run.extractAcc + (run.extractPaused ? 0 : performance.now() - run.extracting);
+    const pct = Math.min(100, done / DFR.EXTRACT_MS * 100);
     $("#raidExtractFill").style.width = pct + "%";
   }
 
@@ -421,8 +504,23 @@
     }
     grid.innerHTML = html;
     $("#raidOverlay").classList.remove("hidden");
+    const tag = $("#rpSearching");
+    tag.classList.remove("hidden", "done");
+    tag.innerHTML = "🔍 正在搜索<span class=\"rp-dots\"></span>";
 
     revealLoop(ov);
+  }
+
+  // 高亮正在搜的格子：脉冲 + 底部进度条（时长 = 该品质揭晓耗时）
+  function markSearching(d, ms) {
+    const grid = $("#rpGrid");
+    for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) {
+      const cell = grid.querySelector(`.rp-cell[data-x="${d.x + dx}"][data-y="${d.y + dy}"]`);
+      if (cell) {
+        cell.classList.add("searching");
+        cell.style.setProperty("--rd", ms + "ms");
+      }
+    }
   }
 
   function waitOv(ov, ms) {
@@ -442,13 +540,21 @@
         await waitOv(ov, DFR.BIG_PAUSE_MS);
       }
       if (ov.cancelled) return;
-      await waitOv(ov, DFR.REVEAL_SEC[d.item.grade] * 1000);
+      const ms = DFR.REVEAL_SEC[d.item.grade] * 1000;
+      markSearching(d, ms);
+      if (!ov.skip) Sfx.rustleStart();
+      await waitOv(ov, ms);
+      Sfx.rustleStop();
       if (ov.cancelled) return;
       revealItem(ov, d);
+      if (!ov.skip) Sfx.ding(d.item.grade);
     }
     ov.done = true;
     $("#rpSkip").classList.add("hidden");
     $("#rpClose").classList.remove("hidden");
+    const tag = $("#rpSearching");
+    tag.classList.add("done");
+    tag.textContent = "✓ 搜索完毕";
     $("#rpMsg").textContent = ov.staging.length ? "不够不够，继续吃！—— 点下面的货入包" : "这容器比鼠鼠的脸还干净……";
     renderStaging(ov);
   }
@@ -505,6 +611,7 @@
       return;
     }
     ov.staging.splice(i, 1);
+    Sfx.pickup();
     DF_APP.toast(act === "safe" ? `「${d.item.name}」进安全箱，稳了` : `「${d.item.name}」入包`);
     renderStaging(ov);
     renderBags();
@@ -515,6 +622,8 @@
     const ov = Raid.overlay;
     if (!ov) return;
     if (!ov.done) { ov.cancelled = true; } // 未揭完就走：剩余货直接算放弃
+    Sfx.rustleStop();
+    $("#rpSearching").classList.add("hidden");
     if (ov.staging.length && ov.done) DF_APP.toast(`${ov.staging.length} 件带不走，留给下一只鼠了`);
     const run = Raid.run;
     ov.c.searched = true;
@@ -535,7 +644,7 @@
     run.outcome = outcome;
     run.extracting = 0;
     updateExtractBar();
-    if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); }
+    if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); Sfx.rustleStop(); }
 
     const mainV = DFR.bagValue(run.bagMain);
     const safeV = DFR.bagValue(run.bagSafe);
