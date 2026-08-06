@@ -874,27 +874,24 @@
   const VIEWS = {
     "": "home", "#/": "home",
     "#/smith": "smith", "#/guess": "guess", "#/duel": "duel", "#/sort": "sort",
-    "#/loot-duel": "lootduel", "#/loot-sort": "lootsort", "#/raid": "raid",
+    "#/loot-duel": "lootduel", "#/loot-sort": "lootsort",
   };
   const RENDER = {
     smith: smithRender, guess: guessRender, duel: duelRender, sort: sortRender,
     lootduel: lootDuelRender, lootsort: lootSortRender,
-    raid: () => { if (window.DFR_UI) window.DFR_UI.render(); },
   };
 
   function route() {
     const view = VIEWS[location.hash] || "home";
-    ["home", "smith", "guess", "duel", "sort", "lootduel", "lootsort", "raid"].forEach((v) =>
+    ["home", "smith", "guess", "duel", "sort", "lootduel", "lootsort"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== view));
-    if (window.DFR_UI && window.DFR_UI.onRoute) window.DFR_UI.onRoute(view); // 切走即停表停巡逻
     if (view === "home") renderHomeDots();
     else RENDER[view]();
     window.scrollTo(0, 0);
   }
 
   function syncModeTabs(game) {
-    const mode = { smith: Smith.mode, guess: Guess.mode, duel: Duel.mode, sort: Sort.mode, lootduel: LootDuel.mode, lootsort: LootSort.mode,
-      raid: window.DFR_UI ? window.DFR_UI.getMode() : "daily" }[game];
+    const mode = { smith: Smith.mode, guess: Guess.mode, duel: Duel.mode, sort: Sort.mode, lootduel: LootDuel.mode, lootsort: LootSort.mode }[game];
     $$(`.mode-tabs[data-game="${game}"] .mode-tab`).forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === mode));
   }
@@ -907,7 +904,6 @@
       sort: loadJSON(dkey("sort"), null),
       lootduel: loadJSON(dkey("lootduel"), null),
       lootsort: loadJSON(dkey("lootsort"), null),
-      raid: loadJSON(dkey("raid"), null),
     };
     for (const [game, st] of Object.entries(checks)) {
       const done = st && (st.status === "won" || st.status === "lost");
@@ -916,9 +912,6 @@
   }
 
   // ---------- 启动 ----------
-  // 导出给 raid-ui.js 复用的助手（toast / 复制 / 存储 / 日期）
-  window.DF_APP = { toast, copyText, store, loadJSON, dkey, TODAY };
-
   function init() {
     smithInit();
     guessInit();
@@ -936,8 +929,7 @@
     $("#lootSortSubmit").addEventListener("click", lootSortSubmit);
     $$(".mode-tabs").forEach((tabs) => {
       const game = tabs.dataset.game;
-      const setter = { smith: smithSetMode, guess: guessSetMode, duel: duelSetMode, sort: sortSetMode, lootduel: lootDuelSetMode, lootsort: lootSortSetMode,
-        raid: (m) => { if (window.DFR_UI) window.DFR_UI.setMode(m); } }[game];
+      const setter = { smith: smithSetMode, guess: guessSetMode, duel: duelSetMode, sort: sortSetMode, lootduel: lootDuelSetMode, lootsort: lootSortSetMode }[game];
       tabs.querySelectorAll(".mode-tab").forEach((b) =>
         b.addEventListener("click", () => setter(b.dataset.mode)));
     });
