@@ -90,7 +90,16 @@ const DROP_WEIGHTS = {
 
 (async () => {
   const raw = await fetchJson(`${DFDATA}/props/collection.json`);
-  const list = raw.jData.data;
+  // 上游 JSON 嵌套层级不稳定（jData.data / jData.data.data.list 都出现过），递归找物品数组
+  function findItems(o) {
+    if (Array.isArray(o) && o.length && o[0] && o[0].objectID) return o;
+    if (o && typeof o === "object") {
+      for (const v of Object.values(o)) { const r = findItems(v); if (r) return r; }
+    }
+    return null;
+  }
+  const list = findItems(raw);
+  if (!list) throw new Error("collection.json 里没找到物品数组");
 
   const items = list.map((it) => {
     const cells = it.length * it.width;

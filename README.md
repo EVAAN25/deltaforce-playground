@@ -12,6 +12,10 @@
 | 🎯 猜枪械 | Wordle 式七维比对：类型 / 口径 / 开火模式 / 伤害 / 射速 / 射程 / 弹容量，数值带 ⬆️⬇️ 提示，6 次机会。题池 50 把枪。 |
 | ⚔️ 枪械对决 | Higher-Lower：每日种子指定一项属性，判断右边枪械数值更高还是更低，固定 10 轮，答错即结算；每次作答后公布双方该项数值；练习模式无限连击。 |
 | 📶 火力排排坐 | 把 5 把枪按每日指定属性（射速 / 伤害 / 射程 / 弹容量 / 子弹初速）从高到低排序，3 次提交机会，逐位给 🟩🟥。 |
+| 💰 摸金对决 | 收集品价值 Higher-Lower：每日种子指定维度（总价值 / 单格价值），右边那件更值钱还是更便宜？固定 10 轮，答错即结算；每次作答后公布双方数值。 |
+| 📦 物资排排坐 | 把 5 件物资按每日指定维度（总价值 / 单格价值）从高到低排序，3 次提交机会。 |
+
+> 摸金玩法的物资价值为同人自设玩法数值（官方未公开静态物价），非官方交易行价；物品名称 / 品质 / 尺寸 / 类型 / 产出地图来自官方图鉴快照。
 
 每个玩法：每日一题（按本地日期独立种子，全站同题）+ 每日题玩完后可无缝「再来一题」随机续玩不限次 + 独立 localStorage 进度 + emoji 分享卡（输赢都有）+ 结算评级。
 
@@ -33,9 +37,10 @@ node test.js    # 19 项：数据完整性 / 四玩法每日确定性 / 题库�
 
 - 枪械 50 把（7 大类全属性）：GitHub 仓库 [zhuba-Ahhh/df-api](https://github.com/zhuba-Ahhh/df-api) 整理的官方图鉴数据快照（2024-12，含口径/描述）合并 [GTI 数据库 gtidb.com](https://gtidb.com)（粉丝 Wiki）的较新平衡数值与 3 把新增枪械（腾龙突击步枪 / M250通用机枪 / M1911），本站于 2026-08-06 拉取并清洗。
 - 配件 392 件（9 大部位数值加成）：GitHub 仓库 [jiansenc/DeltaForceData](https://github.com/jiansenc/DeltaForceData) 整理的官方图鉴数据快照（2024-12），无可用更新源。
-- 图片：官方图鉴 CDN（`playerhub.df.qq.com`）300×150 图鉴图，已下载至本地 `assets/`。
+- 收集品 253 件（名称 / 品质 / 尺寸 / 类型 / 产出地图 / 描述）：同仓库官方图鉴快照（2024-12）；摸金玩法的价值与单格价值为同人自设公式（品质基价 × 类别系数 × 尺寸衰减），非官方交易行价。
+- 图片：官方图鉴 CDN（`playerhub.df.qq.com`）图鉴小图，已下载至本地 `assets/`。
 - 已知缺口：2025-2026 赛季新枪（K437 / RM277 等约 15 把）任何可及来源均无官方图鉴格式的完整数值，不入库、不编造；「枪械↔配件逐个兼容关系」无公开真实数据，故改枪玩法设计为不依赖兼容性的形态。
-- 数据源调研详情与可重跑管线见 [tools/README.md](tools/README.md)（`node tools/build_data.js && node tools/fetch_assets.js`）。
+- 数据源调研详情与可重跑管线见 [tools/README.md](tools/README.md)（`node tools/build_data.js && node tools/fetch_assets.js && node tools/build_loot.js && node tools/fetch_props.js`）。
 
 ## 目录结构
 
@@ -44,7 +49,8 @@ index.html / style.css / app.js   # 单页应用（vanilla，无构建步骤）
 game.js                           # 纯逻辑层（UMD，node 可测）
 data/weapons.js                   # 枪械数据（管线生成）
 data/attachments.js               # 配件数据（管线生成）
-assets/guns/ assets/acc/          # 图片素材（官方 CDN 小图）
+data/loot.js                      # 收集品数据（管线生成，价值为自设玩法数值）
+assets/guns/ assets/acc/ assets/props/  # 图片素材（官方 CDN 小图）
 tools/                            # 数据管线 + 数据源说明
 test.js                           # node 自测
 ```

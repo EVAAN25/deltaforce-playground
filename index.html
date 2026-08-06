@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>三角洲行动游乐场 · 粉丝同人小游戏</title>
-<meta name="description" content="非官方三角洲行动粉丝同人小游戏：改枪大师、猜枪械、枪械对决、火力排排坐，每日一题。">
+<meta name="description" content="非官方三角洲行动粉丝同人小游戏：改枪大师、猜枪械、枪械对决、火力排排坐、摸金对决、物资排排坐、鼠鼠摸金（2D 摸金撤离），每日一题可无限续玩。">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -44,6 +44,27 @@
         <div class="hc-body">
           <h2>火力排排坐<span class="dot" id="dot-sort"></span></h2>
           <p>把 5 把枪按每日指定属性从高到低排好，3 次提交机会。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/loot-duel">
+        <div class="hc-emoji">💰</div>
+        <div class="hc-body">
+          <h2>摸金对决<span class="dot" id="dot-lootduel"></span></h2>
+          <p>两件收集品，右边那件更值钱还是更不值钱？总价值与单格价值轮番上阵，10 轮答错即结算。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/loot-sort">
+        <div class="hc-emoji">📦</div>
+        <div class="hc-body">
+          <h2>物资排排坐<span class="dot" id="dot-lootsort"></span></h2>
+          <p>把 5 件物资按每日指定维度（总价值 / 单格价值）从高到低排好，3 次提交机会。</p>
+        </div>
+      </a>
+      <a class="home-card" href="#/raid">
+        <div class="hc-emoji">🐭</div>
+        <div class="hc-body">
+          <h2>鼠鼠摸金<span class="dot" id="dot-raid"></span></h2>
+          <p>2D 摸金撤离（参考小涛查模拟器）：跑图开容器逐格开奖，格子背包取舍，躲开猛攻队巡逻，引导 5 秒肥肥撤离。</p>
         </div>
       </a>
     </div>
@@ -167,18 +188,147 @@
     <div id="sortAttempts" class="tl-attempts"></div>
     <div id="sortResult" class="result hidden"></div>
   </section>
+
+  <!-- 玩法 5：摸金对决 -->
+  <section id="view-lootduel" class="view hidden">
+    <div class="game-head">
+      <h2>💰 摸金对决</h2>
+      <div class="mode-tabs" data-game="lootduel">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="lootDuelBanner"></p>
+
+    <p class="duel-stat" id="lootDuelStat"></p>
+    <div class="pop-arena">
+      <div class="pop-card" id="lootDuelLeft"></div>
+      <div class="pop-vs">VS</div>
+      <div class="pop-card" id="lootDuelRight"></div>
+    </div>
+    <div class="pop-actions" id="lootDuelActions">
+      <button class="btn" id="lootDuelHigher">更值钱 ⬆️</button>
+      <button class="btn" id="lootDuelLower">更便宜 ⬇️</button>
+    </div>
+    <p class="pop-streak" id="lootDuelStreak"></p>
+    <div id="lootDuelResult" class="result hidden"></div>
+
+    <p class="data-note warn">价值与单格价值为同人自设玩法数值（官方未公开静态物价），<b>非官方交易行价</b>；物品名称 / 品质 / 尺寸 / 类型 / 产出地图来自官方图鉴快照（2024-12）。</p>
+  </section>
+
+  <!-- 玩法 6：物资排排坐 -->
+  <section id="view-lootsort" class="view hidden">
+    <div class="game-head">
+      <h2>📦 物资排排坐</h2>
+      <div class="mode-tabs" data-game="lootsort">
+        <button class="mode-tab active" data-mode="daily">每日挑战</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="lootSortBanner"></p>
+
+    <div id="lootSortList" class="tl-list"></div>
+    <div class="tl-actions">
+      <button class="btn" id="lootSortSubmit">提交排序</button>
+      <span class="tries-left" id="lootSortTries"></span>
+    </div>
+    <div id="lootSortAttempts" class="tl-attempts"></div>
+    <div id="lootSortResult" class="result hidden"></div>
+
+    <p class="data-note warn">价值与单格价值为同人自设玩法数值（官方未公开静态物价），<b>非官方交易行价</b>；物品名称 / 品质 / 尺寸 / 类型 / 产出地图来自官方图鉴快照（2024-12）。</p>
+  </section>
+
+  <!-- 玩法 7：鼠鼠摸金（2D 摸金撤离） -->
+  <section id="view-raid" class="view hidden">
+    <div class="game-head">
+      <h2>🐭 鼠鼠摸金</h2>
+      <div class="mode-tabs" data-game="raid">
+        <button class="mode-tab active" data-mode="daily">每日一图</button>
+        <button class="mode-tab" data-mode="practice">练习模式</button>
+      </div>
+    </div>
+    <p class="mode-banner" id="raidBanner"></p>
+    <p class="raid-credit">玩法与容器设定参考 B 站 Toy 作品《三角洲小涛查-鼠鼠偷吃模拟器》（orzice.com）；物品为官方图鉴快照数据；价值与掉落概率为同人自设，非官方物价。</p>
+
+    <div class="raid-hud">
+      <span>⏱ <b id="raidTimer">4:00</b></span>
+      <span>💰 身上 <b id="raidValue">0</b></span>
+      <span>📦 摸过 <b id="raidSearched">0/0</b></span>
+    </div>
+
+    <div class="raid-stage">
+      <canvas id="raidCanvas" width="720" height="480"></canvas>
+      <div id="raidExtractBar" class="raid-extract hidden">
+        <div class="re-fill" id="raidExtractFill"></div>
+        <span class="re-text">撤离引导中……</span>
+      </div>
+    </div>
+    <p class="raid-tip" id="raidTip"></p>
+    <p class="raid-story" id="raidStory"></p>
+
+    <div class="raid-bags">
+      <div class="raid-bag">
+        <h3>🎒 主背包 <small>被抓全掉光 · 点物品丢弃</small></h3>
+        <div class="bag-grid" id="raidBagMain"></div>
+      </div>
+      <div class="raid-bag">
+        <h3>🔐 安全箱 <small>死了也不掉</small></h3>
+        <div class="bag-grid small" id="raidBagSafe"></div>
+      </div>
+    </div>
+
+    <div id="raidResult" class="result hidden"></div>
+
+    <!-- 搜索浮层 -->
+    <div id="raidOverlay" class="raid-overlay hidden">
+      <div class="raid-panel" id="raidPanel">
+        <div class="rp-head">
+          <h3 id="rpTitle">容器</h3>
+          <div class="rp-value" id="rpValue">价值【0】</div>
+        </div>
+        <div class="rp-grid-wrap"><div class="rp-grid" id="rpGrid"></div></div>
+        <p class="rp-msg" id="rpMsg"></p>
+        <div class="rp-staging" id="rpStaging"></div>
+        <div class="rp-actions">
+          <button class="btn ghost" id="rpSkip">全部揭开 ⏩</button>
+          <button class="btn hidden" id="rpClose">收工走人 🏃</button>
+        </div>
+      </div>
+    </div>
+
+    <details class="legend">
+      <summary>得吃记录 · 收集图鉴（存本机浏览器）</summary>
+      <div id="raidCollection"></div>
+    </details>
+
+    <details class="legend">
+      <summary>规则说明</summary>
+      <ul>
+        <li>WASD / 方向键逐格移动，或点击格子自动寻路；走到容器相邻格按 <b>E</b>（或直接点容器）开搜。</li>
+        <li>搜索逐格开奖：单格耗时按品质递增，金 / 红出货有光效；搜出的货先进待拾取区，点「入包 / 入箱」取舍——背包格子有限，单格价值（性价比）是关键。</li>
+        <li>主背包 6×4，被抓全部掉光；安全箱 2×2，死了迷失也保住。每个容器每局只能搜一次。</li>
+        <li>猛攻队沿固定路线巡逻，有视野半径且会被墙和容器挡住；被看见＝被一脚踢死，本局结束。倒计时 240 秒，超时＝迷失，同样结束。</li>
+        <li>站到撤离点按 <b>E</b> 引导 5 秒撤离（猛攻队接近会打断），带出价值 = 背包 + 安全箱合计，按价值评级 C / B / A / S / SS。</li>
+        <li>每日一图按本地日期生成，同一天所有人同图同掉落；练习模式随机图不限次。进度与图鉴存在本机浏览器里。</li>
+      </ul>
+    </details>
+  </section>
 </main>
 
 <footer class="site-footer">
   <p>非官方粉丝同人作品，与腾讯（Tencent）及琳琅天上工作室（Team Jade）无关。游戏素材版权归原厂商所有。</p>
-  <p>数据来源：GitHub 仓库 zhuba-Ahhh/df-api 与 jiansenc/DeltaForceData 整理的官方图鉴数据快照（约 2024-12，配件 392 件），合并 GTI 数据库 gtidb.com（粉丝 Wiki）的较新平衡数值与新增枪械（枪械 50 把）；图片来自官方图鉴 CDN；本站于 2026-08-06 拉取。</p>
+  <p>数据来源：GitHub 仓库 zhuba-Ahhh/df-api 与 jiansenc/DeltaForceData 整理的官方图鉴数据快照（约 2024-12，配件 392 件 / 收集品 253 件），合并 GTI 数据库 gtidb.com（粉丝 Wiki）的较新平衡数值与新增枪械（枪械 50 把）；图片来自官方图鉴 CDN；本站于 2026-08-06 拉取。</p>
+  <p>「鼠鼠摸金」玩法的物资价值与单格价值为同人自设玩法数值（官方未公开静态物价），非官方交易行价。</p>
 </footer>
 
 <div id="toast" class="toast hidden"></div>
 
 <script src="data/weapons.js"></script>
 <script src="data/attachments.js"></script>
+<script src="data/loot.js"></script>
 <script src="game.js"></script>
+<script src="raid.js"></script>
 <script src="app.js"></script>
+<script src="raid-ui.js"></script>
 </body>
 </html>

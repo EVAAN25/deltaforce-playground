@@ -7,10 +7,13 @@
 
   const WEAPONS = window.DF_WEAPONS;
   const ACCS = window.DF_ACC;
+  const LOOT_ITEMS = window.DF_LOOT.items;
   const byId = {};
   WEAPONS.forEach((w) => { byId[w.id] = w; });
   const accById = {};
   ACCS.forEach((a) => { accById[a.id] = a; });
+  const lootById = {};
+  LOOT_ITEMS.forEach((i) => { lootById[i.id] = i; });
   const GPOOL = DFG.guessPool(WEAPONS);
 
   // ---------- 本地存储（file:// 下也尽量可用，失败降级为内存） ----------
@@ -42,6 +45,9 @@
   }
   function accImgHTML(a, cls) {
     return `<img class="gun-img ${cls || ""}" loading="lazy" src="${a.img}" alt="${a.name}" data-name="${a.name}" onerror="window.__dfImg(this)">`;
+  }
+  function lootImgHTML(i, cls) {
+    return `<img class="gun-img ${cls || ""}" loading="lazy" src="${i.img}" alt="${i.name}" data-name="${i.name}" onerror="window.__dfImg(this)">`;
   }
 
   // ---------- 复制与提示 ----------
@@ -613,25 +619,282 @@
   }
 
   /* ================================================================
+   * 玩法 5：摸金对决（收集品价值 higher-lower）
+   * daily    = {statKey, chain:[11 ids], pos, score, trail:[{dir,ok}], status}
+   * practice = {statKey, leftId, rightId, streak, trail, status}
+   * ================================================================ */
+  const LootDuel = { mode: "daily", daily: null, practice: null, locked: false };
+
+  function ldState() { return LootDuel.mode === "daily" ? LootDuel.daily : LootDuel.practice; }
+  function ldPair() {
+    const s = ldState();
+    if (LootDuel.mode === "daily") {
+      const i = Math.min(s.pos, s.chain.length - 2);
+      return [lootById[s.chain[i]], lootById[s.chain[i + 1]]];
+    }
+    return [lootById[s.leftId], lootById[s.rightId]];
+  }
+  function ldPersist() { if (LootDuel.mode === "daily") store.set(dkey("lootduel"), JSON.stringify(LootDuel.daily)); }
+
+  function lootDuelInit() {
+    const q = DFG.lootDuelDaily(TODAY, LOOT_ITEMS);
+    const saved = loadJSON(dkey("lootduel"), null);
+    LootDuel.daily = (saved && saved.statKey === q.statKey && JSON.stringify(saved.chain) === JSON.stringify(q.chain))
+      ? saved
+      : { statKey: q.statKey, chain: q.chain, pos: 0, score: 0, trail: [], status: "playing" };
+  }
+
+  function lootDuelNewPractice() {
+    const q = DFG.lootDuelRandom(LOOT_ITEMS);
+    LootDuel.practice = { statKey: q.statKey, leftId: q.leftId, rightId: q.rightId, streak: 0, trail: [], status: "playing" };
+  }
+
+  function lootCardHTML(w, side, reveal, statKey) {
+    const stat = DFG.LOOT_STAT_BY_KEY[statKey];
+    const valuePart = (side === "left" || reveal)
+      ? `<div class="pop-play">${DFG.formatLoot(w[statKey])}<small>${stat.label}（自设）</small></div>`
+      : `<div class="pop-play unknown">？<small>${stat.label}</small></div>`;
+    return `${lootImgHTML(w)}<div class="pop-name">${w.name}</div>
+      <div class="pop-type">品质${w.grade} · ${w.type} · ${w.cells} 格</div>${valuePart}`;
+  }
+
+  function lootDuelRender(reveal) {
+    const s = ldState();
+    const [left, right] = ldPair();
+    const done = s.status !== "playing";
+    const stat = DFG.LOOT_STAT_BY_KEY[s.statKey];
+    $("#lootDuelBanner").innerHTML = LootDuel.mode === "daily"
+      ? `今日题目 <b>#${TODAY}</b> · 固定 ${DFG.LOOT_DUEL_ROUNDS} 轮 · 答错即结算 · 每次作答后公布双方数值`
+      : `练习模式 · 直到答错 · 最高连击 <b>${loadJSON("df_lootduel_best", 0)}</b> · 每次作答后公布双方数值`;
+    $("#lootDuelStat").innerHTML = `${LootDuel.mode === "daily" ? "今日" : "本局"}比拼维度：<b>${stat.label}</b>`;
+    $("#lootDuelLeft").innerHTML = lootCardHTML(left, "left", done, s.statKey);
+    $("#lootDuelRight").innerHTML = lootCardHTML(right, "right", done || reveal, s.statKey);
+    $("#lootDuelActions").classList.toggle("hidden", done || LootDuel.locked);
+    $("#lootDuelStreak").innerHTML = LootDuel.mode === "daily"
+      ? `第 <b>${Math.min(s.pos + 1, DFG.LOOT_DUEL_ROUNDS)}</b> / ${DFG.LOOT_DUEL_ROUNDS} 轮 · 已连对 ${s.score}`
+      : `当前连击 <b>${s.streak}</b>`;
+    if (done) lootDuelRenderResult();
+    else $("#lootDuelResult").classList.add("hidden");
+  }
+
+  function lootDuelRenderResult() {
+    const s = ldState();
+    const [left, right] = ldPair();
+    const stat = DFG.LOOT_STAT_BY_KEY[s.statKey];
+    const score = LootDuel.mode === "daily" ? s.score : s.streak;
+    const won = LootDuel.mode === "daily" && s.status === "won";
+    const bestLine = LootDuel.mode === "practice"
+      ? `<p class="r-meta">历史最高连击：${loadJSON("df_lootduel_best", 0)}</p>` : "";
+    $("#lootDuelResult").innerHTML = `
+      <h2>${won ? "十轮全对，太强了！" : `答错了，连击定格在 ${score}`}</h2>
+      <p class="r-meta">${left.name} ${stat.label} ${DFG.formatLoot(left[s.statKey])} ｜ ${right.name} ${stat.label} ${DFG.formatLoot(right[s.statKey])}</p>
+      <p class="r-grade">评级 <b>${DFG.lootDuelGrade(score, LootDuel.mode === "daily" ? DFG.LOOT_DUEL_ROUNDS : 0)}</b></p>
+      ${bestLine}
+      <div class="btn-row">
+        <button class="btn" id="lootDuelShareBtn">复制分享卡</button>
+        <button class="btn ghost" id="lootDuelAgainBtn">再来一局（随机 · 不限次）</button>
+      </div>`;
+    $("#lootDuelResult").classList.remove("hidden");
+    $("#lootDuelShareBtn").onclick = () => copyText(DFG.buildLootDuelShare({
+      date: TODAY, statLabel: stat.label, score, trail: s.trail, practice: LootDuel.mode === "practice",
+    }));
+    $("#lootDuelAgainBtn").onclick = () => {
+      lootDuelNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
+      if (LootDuel.mode === "daily") lootDuelSetMode("practice");
+      else lootDuelRender();
+    };
+  }
+
+  function lootDuelAnswer(dir) {
+    const s = ldState();
+    if (!s || s.status !== "playing" || LootDuel.locked) return;
+    const [left, right] = ldPair();
+    const ok = DFG.lootDuelJudge(dir, left, right, s.statKey);
+    s.trail.push({ dir, ok });
+    if (LootDuel.mode === "daily") {
+      if (ok) {
+        s.score++;
+        LootDuel.locked = true;
+        lootDuelRender(true); // 答对也先公布双方数值，停留后进入下一轮
+        setTimeout(() => {
+          LootDuel.locked = false;
+          s.pos++;
+          if (s.pos >= DFG.LOOT_DUEL_ROUNDS) s.status = "won";
+          ldPersist();
+          lootDuelRender();
+        }, DUEL_REVEAL_MS);
+      } else {
+        s.status = "lost";
+        ldPersist();
+        lootDuelRender(true); // 答错：揭示双方数值后结算
+      }
+    } else {
+      if (ok) {
+        s.streak++;
+        LootDuel.locked = true;
+        lootDuelRender(true);
+        setTimeout(() => {
+          LootDuel.locked = false;
+          s.leftId = s.rightId;
+          s.rightId = DFG.lootDuelNext(LOOT_ITEMS, right, s.statKey).id;
+          lootDuelRender();
+        }, DUEL_REVEAL_MS);
+      } else {
+        s.status = "lost";
+        const best = loadJSON("df_lootduel_best", 0);
+        if (s.streak > best) store.set("df_lootduel_best", JSON.stringify(s.streak));
+        lootDuelRender(true);
+      }
+    }
+  }
+
+  function lootDuelSetMode(mode) {
+    LootDuel.mode = mode;
+    if (mode === "practice" && !LootDuel.practice) lootDuelNewPractice();
+    syncModeTabs("lootduel");
+    lootDuelRender();
+  }
+
+  /* ================================================================
+   * 玩法 6：物资排排坐（5 件物资按维度降序）
+   * state = {statKey, ids:[5]（当前排列）, attempts:[marks...], status}
+   * ================================================================ */
+  const LootSort = { mode: "daily", daily: null, practice: null, sel: -1 };
+
+  function lsState() { return LootSort.mode === "daily" ? LootSort.daily : LootSort.practice; }
+  function lsCorrect() { return DFG.sortCorrect(lsState().ids, lootById, lsState().statKey); }
+  function lsPersist() { if (LootSort.mode === "daily") store.set(dkey("lootsort"), JSON.stringify(LootSort.daily)); }
+
+  function lootSortInit() {
+    const q = DFG.lootSortDaily(TODAY, LOOT_ITEMS);
+    const key = q.statKey + "|" + q.ids.slice().sort().join(",");
+    const saved = loadJSON(dkey("lootsort"), null);
+    if (saved && saved.statKey + "|" + saved.ids.slice().sort().join(",") === key) LootSort.daily = saved;
+    else LootSort.daily = { statKey: q.statKey, ids: q.ids, attempts: [], status: "playing" };
+  }
+
+  function lootSortNewPractice() {
+    const q = DFG.lootSortRandom(LOOT_ITEMS);
+    LootSort.practice = { statKey: q.statKey, ids: q.ids, attempts: [], status: "playing" };
+  }
+
+  function lootSortRender() {
+    const s = lsState();
+    LootSort.sel = -1;
+    const stat = DFG.LOOT_STAT_BY_KEY[s.statKey];
+    $("#lootSortBanner").innerHTML = (LootSort.mode === "daily"
+      ? `今日题目 <b>#${TODAY}</b> · `
+      : `练习模式 · `) + `点两张卡片交换位置 · 按 <b>${stat.label}</b> 从高到低（上高下低）`;
+    const done = s.status !== "playing";
+    $("#lootSortList").innerHTML = s.ids.map((id, i) => {
+      const w = lootById[id];
+      return `<div class="tl-card ${done ? "done" : ""}" data-i="${i}">
+        <span class="pos">${i + 1}</span>
+        ${lootImgHTML(w)}
+        <span class="tname">${w.name}<span class="ttype">品质${w.grade} · ${w.type} · ${w.cells} 格</span></span>
+        ${done ? `<span class="tdate">${DFG.formatLoot(w[s.statKey])}</span>` : ""}
+      </div>`;
+    }).join("");
+    if (!done) {
+      $("#lootSortList").querySelectorAll(".tl-card").forEach((el) => {
+        el.addEventListener("click", () => lootSortTap(Number(el.dataset.i)));
+      });
+    }
+    const left = DFG.LOOT_SORT_MAX_TRIES - s.attempts.length;
+    $("#lootSortTries").innerHTML = `剩 <b>${left}</b> / ${DFG.LOOT_SORT_MAX_TRIES} 次提交`;
+    $("#lootSortSubmit").disabled = done;
+    $("#lootSortAttempts").innerHTML = s.attempts.map((m) =>
+      `<div class="tl-marks">${m.map((b) => (b ? "🟩" : "🟥")).join("")}</div>`).join("");
+    if (done) lootSortRenderResult();
+    else $("#lootSortResult").classList.add("hidden");
+  }
+
+  function lootSortTap(i) {
+    if (LootSort.sel === -1) {
+      LootSort.sel = i;
+      $("#lootSortList").querySelectorAll(".tl-card")[i].classList.add("sel");
+    } else if (LootSort.sel === i) {
+      LootSort.sel = -1;
+      $("#lootSortList").querySelectorAll(".tl-card")[i].classList.remove("sel");
+    } else {
+      const s = lsState();
+      [s.ids[LootSort.sel], s.ids[i]] = [s.ids[i], s.ids[LootSort.sel]];
+      lsPersist();
+      lootSortRender();
+    }
+  }
+
+  function lootSortSubmit() {
+    const s = lsState();
+    if (s.status !== "playing") return;
+    const marks = DFG.sortMarks(s.ids, lsCorrect());
+    s.attempts.push(marks);
+    if (marks.every(Boolean)) s.status = "won";
+    else if (s.attempts.length >= DFG.LOOT_SORT_MAX_TRIES) {
+      s.status = "lost";
+      s.ids = lsCorrect(); // 揭示正确顺序
+    }
+    lsPersist();
+    lootSortRender();
+  }
+
+  function lootSortRenderResult() {
+    const s = lsState();
+    const stat = DFG.LOOT_STAT_BY_KEY[s.statKey];
+    const won = s.status === "won";
+    $("#lootSortResult").innerHTML = `
+      <h2>${won ? "排序正确！" : "看走眼了，正确顺序已揭示"}</h2>
+      <p class="r-meta">${s.ids.map((id) => `${lootById[id].name}（${DFG.formatLoot(lootById[id][s.statKey])}）`).join(" → ")}</p>
+      <p class="r-grade">${won ? s.attempts.length : "X"}/${DFG.LOOT_SORT_MAX_TRIES} 次 · 评级 <b>${DFG.lootSortGrade(s.attempts.length, won)}</b></p>
+      <div class="btn-row">
+        <button class="btn" id="lootSortShareBtn">复制分享卡</button>
+        <button class="btn ghost" id="lootSortAgainBtn">再来一题（随机 · 不限次）</button>
+      </div>`;
+    $("#lootSortResult").classList.remove("hidden");
+    $("#lootSortShareBtn").onclick = () => copyText(DFG.buildLootSortShare({
+      date: TODAY, statLabel: stat.label, attempts: s.attempts, won, practice: LootSort.mode === "practice",
+    }));
+    $("#lootSortAgainBtn").onclick = () => {
+      lootSortNewPractice(); // 无缝重开随机题：每日题玩完也可不限次继续
+      if (LootSort.mode === "daily") lootSortSetMode("practice");
+      else lootSortRender();
+    };
+  }
+
+  function lootSortSetMode(mode) {
+    LootSort.mode = mode;
+    if (mode === "practice" && !LootSort.practice) lootSortNewPractice();
+    syncModeTabs("lootsort");
+    lootSortRender();
+  }
+
+  /* ================================================================
    * 路由 / 模式切换 / 首页
    * ================================================================ */
   const VIEWS = {
     "": "home", "#/": "home",
     "#/smith": "smith", "#/guess": "guess", "#/duel": "duel", "#/sort": "sort",
+    "#/loot-duel": "lootduel", "#/loot-sort": "lootsort", "#/raid": "raid",
   };
-  const RENDER = { smith: smithRender, guess: guessRender, duel: duelRender, sort: sortRender };
+  const RENDER = {
+    smith: smithRender, guess: guessRender, duel: duelRender, sort: sortRender,
+    lootduel: lootDuelRender, lootsort: lootSortRender,
+    raid: () => { if (window.DFR_UI) window.DFR_UI.render(); },
+  };
 
   function route() {
     const view = VIEWS[location.hash] || "home";
-    ["home", "smith", "guess", "duel", "sort"].forEach((v) =>
+    ["home", "smith", "guess", "duel", "sort", "lootduel", "lootsort", "raid"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== view));
+    if (window.DFR_UI && window.DFR_UI.onRoute) window.DFR_UI.onRoute(view); // 切走即停表停巡逻
     if (view === "home") renderHomeDots();
     else RENDER[view]();
     window.scrollTo(0, 0);
   }
 
   function syncModeTabs(game) {
-    const mode = { smith: Smith.mode, guess: Guess.mode, duel: Duel.mode, sort: Sort.mode }[game];
+    const mode = { smith: Smith.mode, guess: Guess.mode, duel: Duel.mode, sort: Sort.mode, lootduel: LootDuel.mode, lootsort: LootSort.mode,
+      raid: window.DFR_UI ? window.DFR_UI.getMode() : "daily" }[game];
     $$(`.mode-tabs[data-game="${game}"] .mode-tab`).forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === mode));
   }
@@ -642,6 +905,9 @@
       guess: loadJSON(dkey("guess"), null),
       duel: loadJSON(dkey("duel"), null),
       sort: loadJSON(dkey("sort"), null),
+      lootduel: loadJSON(dkey("lootduel"), null),
+      lootsort: loadJSON(dkey("lootsort"), null),
+      raid: loadJSON(dkey("raid"), null),
     };
     for (const [game, st] of Object.entries(checks)) {
       const done = st && (st.status === "won" || st.status === "lost");
@@ -650,19 +916,28 @@
   }
 
   // ---------- 启动 ----------
+  // 导出给 raid-ui.js 复用的助手（toast / 复制 / 存储 / 日期）
+  window.DF_APP = { toast, copyText, store, loadJSON, dkey, TODAY };
+
   function init() {
     smithInit();
     guessInit();
     duelInit();
     sortInit();
+    lootDuelInit();
+    lootSortInit();
     guessBindInput();
     $("#smithNextBtn").addEventListener("click", smithNext);
     $("#duelHigher").addEventListener("click", () => duelAnswer("higher"));
     $("#duelLower").addEventListener("click", () => duelAnswer("lower"));
     $("#sortSubmit").addEventListener("click", sortSubmit);
+    $("#lootDuelHigher").addEventListener("click", () => lootDuelAnswer("higher"));
+    $("#lootDuelLower").addEventListener("click", () => lootDuelAnswer("lower"));
+    $("#lootSortSubmit").addEventListener("click", lootSortSubmit);
     $$(".mode-tabs").forEach((tabs) => {
       const game = tabs.dataset.game;
-      const setter = { smith: smithSetMode, guess: guessSetMode, duel: duelSetMode, sort: sortSetMode }[game];
+      const setter = { smith: smithSetMode, guess: guessSetMode, duel: duelSetMode, sort: sortSetMode, lootduel: lootDuelSetMode, lootsort: lootSortSetMode,
+        raid: (m) => { if (window.DFR_UI) window.DFR_UI.setMode(m); } }[game];
       tabs.querySelectorAll(".mode-tab").forEach((b) =>
         b.addEventListener("click", () => setter(b.dataset.mode)));
     });

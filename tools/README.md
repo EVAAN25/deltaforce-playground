@@ -11,7 +11,7 @@
 | zhuba-Ahhh/df-api | https://github.com/zhuba-Ahhh/df-api | 枪械 7 大类静态数据（`src/arms/json/*.ts`） | `objectID / objectName / secondClassCN / desc / pic / gunDetail{ meatHarm armorHarm fireSpeed shootDistance recoil control stable hipShot capacity fireMode muzzleVelocity soundDistance caliber }` | 47 把（官方图鉴快照 2024-12，含口径与描述；仓库 main/dev/feat/v2 分支数据一致，2025-06 后无枪械数据更新） |
 | GTI 数据库 gtidb.com | https://gtidb.com/weapons/10000…10049 | 粉丝 Wiki 武器页（VitePress 静态页，属性表与官方图鉴同构，数值跟随平衡补丁） | 每页：`名称/类型/基础伤害/护甲伤害/射速/射程/后坐力控制/操控速度/据枪稳定性/腰射精度/弹容量/开火模式/子弹初速/枪声传播距离` + 图鉴 objectID（页面插图 URL 内含） | 50 把（含快照没有的 **腾龙突击步枪 / M250通用机枪 / M1911**），2026-08-06 抓取 |
 | gtidb 伤害模型 | https://gtidb.com/calculator/dps.html 引用的 `assets/chunks/damages.*.js` | 每枪伤害衰减模型，含 `bulletType`（弹种） | `baseDamage/armorDamage/fireRate/damageFalloffs/bulletType/triggerDelay` | 用于给 3 把新枪定口径（已用已知枪校验映射：AKM→7.62x39、M4A1→5.56、VSS→9x39 均吻合） |
-| jiansenc/DeltaForceData | https://github.com/jiansenc/DeltaForceData | 配件 9 大类静态 JSON（`public/json/acc/*.json`） | `objectID / objectName / secondClassCN(部位) / grade / weight / pic / accDetail{ 数值加成 + advantage/disadvantage 效果文本 }` | 枪口34 + 枪管104 + 前握把21 + 后握把27 + 护木24 + 枪托57 + 瞄具31 + 弹匣58 + 功能性36 = **392 件**（官方图鉴快照 2024-12，仓库停更） |
+| jiansenc/DeltaForceData | https://github.com/jiansenc/DeltaForceData | 配件 9 大类 + 收集品静态 JSON（`public/json/acc/*.json`、`props/collection.json`） | 配件：`objectID / objectName / secondClassCN(部位) / grade / weight / pic / accDetail{ 数值加成 + advantage/disadvantage 效果文本 }`；收集品：`objectName / grade / 尺寸(len×wid) / 类别 / 产出地图 / desc` | 配件 **392 件** + 收集品 **253 件**（官方图鉴快照 2024-12，仓库停更） |
 | 官方图片 CDN | `https://playerhub.df.qq.com/playerhub/60004/object/p_{objectID}.png` | 枪械/配件/干员图片 | 300×150 PNG（`p_` 前缀小图）/ 1200×600 大图 | 全量可用，新枪图片按 objectID 补抓成功 |
 
 **枪械合并规则**（`tools/build_data.js`）：同 objectID 的枪以 gtidb 的数值/类型/开火模式覆盖快照（gtidb 更新、跟随平衡补丁）；口径/描述/重量保留官方图鉴快照；gtidb 独有的枪整枪采用 gtidb 数据，口径取自 gtidb 伤害模型的 bulletType（同站来源），描述暂缺（空串，UI 已做降级）。
@@ -39,6 +39,8 @@
 ```bash
 node tools/build_data.js     # 抓取上游 → 合并 → data/weapons.js + data/attachments.js
 node tools/fetch_assets.js   # 按 data/*.js 的图片清单从官方 CDN 下载 → assets/guns/ + assets/acc/
+node tools/build_loot.js     # 收集品（253 件）→ data/loot.js（价值为同人自设公式，见文件头注）
+node tools/fetch_props.js    # 收集品图片 → assets/props/
 ```
 
 两个脚本均无第三方依赖（Node ≥18，用内置 fetch）。`build_data.js` 做的清洗/合并：
