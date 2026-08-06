@@ -30,6 +30,15 @@
 
 四玩法统一：每日题玩完后「再来一题」无缝重开随机题、不限次数；结算面板输赢都有分享卡。
 
+## 2026-08-06 鼠鼠摸金 2D 撤离上线（第四批）
+
+- 按 `_wip_raid/README.md` 接手说明接回：raid.js/raid-ui.js 入仓库根；index.html 首页卡 + #view-raid + 双 script + meta；style.css 尾部 raid 样式块；test.js raid 测试段；app.js 7 处接线（VIEWS/RENDER/视图数组/onRoute 钩子/syncModeTabs/renderHomeDots/DF_APP 导出/setter 映射）。
+- 数据适配：0139fa1 后 13 件不可交易物品 value=null，raid.js `rollContainer` 两处物品池（品质池 + 1 格保底池）已过滤 `value == null`；新增测试断言「未定价物品不进掉落池、bagValue 无 NaN」。
+- credit 行更新为「价格为三角洲数据帝真实交易行快照（2026-01-10）；掉落概率为同人自设」。
+- 端到端手测（webbridge 真实浏览器）：移动/点击寻路/开容器逐格开奖/入包（真实价 23,955）/被抓结算/分享卡/再来一局全通；移动端 390×844 布局正常。
+- 测试：33 项全过（24 项原有 + 8 项 raid + 1 项 null 兜底）。
+- `_wip_raid/` 存档保留，仓库内已有完整实现。
+
 ## 2026-08-06 数据帝物价接入（第三批）
 
 - 数据源：三角洲数据帝开放平台（orzice.com/work，Apifox 文档 work-api.apifox.cn）。线上接口需 token（控制台 QQ 登录 + 按请求包计费）；开源快照 orzice/DeltaForcePrice（price.json，1246 条，真实交易行价，2026-01-10 停更）免费。

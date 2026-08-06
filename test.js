@@ -425,4 +425,158 @@ ok("搜索：前缀优先、本名命中（M4 → M4A1突击步枪）、排除�
   assert(!ex.some((w) => w.id === r[0].id));
 });
 
+// ---------- 玩法 7：鼠鼠摸金 ----------
+const DFR = require("./raid.js");
+
+ok("鼠鼠摸金：容器 28 种三档齐全、掉落权重各 tier 归一", () => {
+  assert.strictEqual(DF_LOOT.containers.length, 28);
+  const tiers = new Set(DF_LOOT.containers.map((c) => c.tier));
+  assert.deepStrictEqual([...tiers].sort(), [1, 5, 6]);
+  for (const c of DF_LOOT.containers) {
+    assert(c.id != null && c.name && c.w > 0 && c.h > 0, "容器字段 " + c.id);
+  }
+  for (const t of [1, 5, 6]) {
+    const w = DF_LOOT.dropWeights[t];
+    assert(w, "缺 tier " + t + " 权重");
+    let sum = 0;
+    for (const g of [1, 2, 3, 4, 5, 6]) { assert(typeof w[g] === "number" && w[g] >= 0); sum += w[g]; }
+    assert(Math.abs(sum - 1) < 1e-9, `tier ${t} 权重和 ${sum}`);
+  }
+});
+
+ok("鼠鼠摸金：多种子地图全连通（出生点可达所有容器与撤离点）", () => {
+  for (let seed = 1; seed <= 25; seed++) {
+    const map = DFR.generateRaid(seed, DF_LOOT);
+    assert.strictEqual(map.w, DFR.MAP_W); assert.strictEqual(map.h, DFR.MAP_H);
+    assert(DFR.validateMap(map), "地图不连通 seed=" + seed);
+    assert.strictEqual(map.extracts.length, 2, "撤离点数 " + seed);
+    assert(map.containers.length >= 10 && map.containers.length <= 14, "容器数 " + map.containers.length);
+    const t6 = map.containers.filter((c) => c.tier === 6).length;
+    const t5 = map.containers.filter((c) => c.tier === 5).length;
+    assert.strictEqual(t6, 2, "tier6 数 " + seed);
+    assert.strictEqual(t5, 4, "tier5 数 " + seed);
+    assert(map.patrols.length >= 2 && map.patrols.length <= 3, "巡逻队数 " + seed);
+    for (const p of map.patrols) assert(p.path.length >= 4 && (p.radius === 3 || p.radius === 4));
+  }
+});
+
+ok("鼠鼠摸金：每日种子确定性（同种子同图同掉落）", () => {
+  const seed = DFR.dailySeed("2026-08-05");
+  const m1 = DFR.generateRaid(seed, DF_LOOT);
+  const m2 = DFR.generateRaid(seed, DF_LOOT);
+  assert.strictEqual(JSON.stringify(m1), JSON.stringify(m2), "同种子地图不同");
+  // 容器掉落与搜索顺序无关：只由局种子 + 容器身份决定
+  const c = m1.containers[0];
+  const d1 = DFR.rollContainer(DFG.mulberry32(DFG.hash32(`df-raid-drop:${seed}:${c.cid}:${c.x},${c.y}`)), c, DF_LOOT);
+  const d2 = DFR.rollContainer(DFG.mulberry32(DFG.hash32(`df-raid-drop:${seed}:${c.cid}:${c.x},${c.y}`)), c, DF_LOOT);
+  assert.strictEqual(JSON.stringify(d1.map((d) => d.item.id)), JSON.stringify(d2.map((d) => d.item.id)), "同种子掉落不同");
+  // 不同日期种子不同
+  assert.notStrictEqual(DFR.dailySeed("2026-08-05"), DFR.dailySeed("2026-08-06"));
+});
+
+ok("鼠鼠摸金：roll 掉落件数/边界/不重叠/品质合法", () => {
+  const map = DFR.generateRaid(DFR.dailySeed("2026-08-05"), DF_LOOT);
+  for (const c of map.containers) {
+    const rng = DFG.mulberry32(12345 + c.cid);
+    const drops = DFR.rollContainer(rng, c, DF_LOOT);
+    const cells = c.w * c.h;
+    assert(drops.length >= 1 && drops.length <= cells, `件数越界 ${c.name}: ${drops.length}`);
+    const occ = new Set();
+    for (const d of drops) {
+      assert(d.item.grade >= 1 && d.item.grade <= 6, "品质 " + d.item.grade);
+      assert(d.x >= 0 && d.y >= 0 && d.x + d.w <= c.w && d.y + d.h <= c.h, "出界 " + d.item.name);
+      assert.strictEqual(d.w * d.h, d.item.cells, "面积不符 " + d.item.name);
+      for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) {
+        const k = (d.x + dx) + "," + (d.y + dy);
+        assert(!occ.has(k), "重叠 " + k);
+        occ.add(k);
+      }
+    }
+  }
+});
+
+ok("鼠鼠摸金：first-fit 装箱正确性（含旋转与放不下失败）", () => {
+  const bag = DFR.makeBag(2, 2);
+  const cell = { id: 1, name: "单格", grade: 1, len: 1, wid: 1, cells: 1, value: 100, perCell: 100 };
+  const bar = { id: 2, name: "长条", grade: 2, len: 2, wid: 1, cells: 2, value: 200, perCell: 100 };
+  const big = { id: 3, name: "大件", grade: 5, len: 3, wid: 2, cells: 6, value: 999, perCell: 166 };
+  assert(DFR.addToBag(bag, cell));
+  assert(DFR.addToBag(bag, bar)); // 剩 1×2 竖条空间，2×1 横条靠旋转放入
+  assert.strictEqual(bag.items.length, 2);
+  assert(!DFR.addToBag(bag, big), "3×2 不该放进 2×2");
+  assert(!DFR.addToBag(bag, bar), "只剩 1 格，长条放不下");
+  assert(DFR.addToBag(bag, cell), "最后一格能塞单格");
+  assert(!DFR.addToBag(bag, cell), "满了再放必须失败");
+  assert.strictEqual(DFR.bagValue(bag), 100 + 200 + 100);
+  DFR.removeFromBag(bag, 0);
+  assert.strictEqual(DFR.bagValue(bag), 300);
+  assert(DFR.addToBag(bag, cell), "丢弃后空格可复用");
+  // 占用表与物品列表一致
+  const occCount = bag.occ.flat().filter(Boolean).length;
+  assert.strictEqual(occCount, bag.items.reduce((s, e) => s + e.w * e.h, 0));
+});
+
+ok("鼠鼠摸金：未定价物品（value=null）不进掉落池、结算无 NaN", () => {
+  // 数据里存在未定价物品（火箭燃料等，2026-08-06 起价值切数据帝真实物价）
+  assert(DF_LOOT.items.some((i) => i.value === null), "前提：存在未定价物品");
+  // 多种子多容器 roll：掉落物一律有数值价值
+  for (let seed = 1; seed <= 10; seed++) {
+    const map = DFR.generateRaid(seed, DF_LOOT);
+    for (const c of map.containers) {
+      const rng = DFG.mulberry32(999 + seed * 100 + c.cid);
+      const drops = DFR.rollContainer(rng, c, DF_LOOT);
+      for (const d of drops) {
+        assert(typeof d.item.value === "number" && d.item.value > 0, `掉落未定价物品 ${d.item.name}`);
+        assert(typeof d.item.perCell === "number" && d.item.perCell > 0, "perCell " + d.item.name);
+      }
+    }
+  }
+  // 结算路径：装箱 → bagValue 不出现 NaN
+  const map = DFR.generateRaid(7, DF_LOOT);
+  const bag = DFR.makeBag(6, 4);
+  for (const c of map.containers) {
+    const drops = DFR.rollContainer(DFG.mulberry32(c.cid), c, DF_LOOT);
+    for (const d of drops) DFR.addToBag(bag, d.item);
+  }
+  const v = DFR.bagValue(bag);
+  assert(Number.isFinite(v) && v >= 0, "bagValue NaN: " + v);
+});
+
+ok("鼠鼠摸金：评级分档边界", () => {
+  assert.strictEqual(DFR.raidGrade(0).g, "C");
+  assert.strictEqual(DFR.raidGrade(49999).g, "C");
+  assert.strictEqual(DFR.raidGrade(50000).g, "B");
+  assert.strictEqual(DFR.raidGrade(199999).g, "B");
+  assert.strictEqual(DFR.raidGrade(200000).g, "A");
+  assert.strictEqual(DFR.raidGrade(799999).g, "A");
+  assert.strictEqual(DFR.raidGrade(800000).g, "S");
+  assert.strictEqual(DFR.raidGrade(1999999).g, "S");
+  assert.strictEqual(DFR.raidGrade(2000000).g, "SS");
+});
+
+ok("鼠鼠摸金：Bresenham 视线被墙挡、无挡则通", () => {
+  // 3×3 全空
+  const open = DFR.makeGrid(3, 3, 0);
+  const solidOpen = (x, y) => open[y][x] === 1;
+  assert(DFR.losClear(solidOpen, 0, 0, 2, 2));
+  assert(DFR.losClear(solidOpen, 0, 1, 2, 1));
+  // 中间一堵墙
+  open[1][1] = 1;
+  assert(!DFR.losClear(solidOpen, 0, 0, 2, 2), "斜线被 (1,1) 挡");
+  assert(!DFR.losClear(solidOpen, 0, 1, 2, 1), "横线被 (1,1) 挡");
+  assert(DFR.losClear(solidOpen, 0, 2, 2, 2), "底边横线不受影响");
+});
+
+ok("鼠鼠摸金：分享卡格式（撤离/被抓/迷失三种结局）", () => {
+  const t1 = DFR.buildRaidShare({ date: "2026-08-05", outcome: "extracted", value: 1234500, searched: 5, total: 12, bestItemName: "黄金瞪羚" });
+  assert(t1.includes(DFG.SITE_URL) && t1.includes("鼠鼠摸金 #2026-08-05"));
+  assert(t1.includes("🐭") && t1.includes("【1,234,500】") && t1.includes("5/12"));
+  assert(t1.includes("评级 S·肥肥撤离") && t1.includes("黄金瞪羚"));
+  const t2 = DFR.buildRaidShare({ date: "2026-08-05", outcome: "caught", value: 12345, searched: 2, total: 12 });
+  assert(t2.includes("💀") && t2.includes("【12,345】") && t2.includes("评级 C"));
+  const t3 = DFR.buildRaidShare({ date: "2026-08-05", practice: true, outcome: "lost", value: 0, searched: 0, total: 12 });
+  assert(t3.includes("⏱") && t3.includes("练习"));
+  console.log("---- 鼠鼠摸金分享卡示例 ----\n" + t1 + "\n----------------------------");
+});
+
 console.log(`\n全部通过：${passed} 项`);
