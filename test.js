@@ -594,6 +594,28 @@ ok("鼠鼠摸金：包内指定格挪位（canPlaceAt / placeAt）", () => {
   assert.strictEqual(bag.items[1].y, 0);
 });
 
+ok("鼠鼠摸金：包内挪位横竖切换（placeAt rot）", () => {
+  const h2 = { id: 1, name: "横条", grade: 2, len: 2, wid: 1, cells: 2, value: 200, perCell: 100 };
+  const bag = DFR.makeBag(3, 3);
+  DFR.addToBag(bag, h2); // (0,0)-(1,0)，w=2 h=1
+  assert(DFR.canPlaceAt(bag, 0, 2, 0, true), "右侧竖放可以");
+  assert(!DFR.canPlaceAt(bag, 0, 2, 2, true), "竖放出界不行");
+  assert(DFR.placeAt(bag, 0, 2, 0, true), "原地右侧旋转竖放");
+  assert.strictEqual(bag.items[0].w, 1, "旋转后宽 1");
+  assert.strictEqual(bag.items[0].h, 2, "旋转后高 2");
+  assert(bag.occ[0][2] && bag.occ[1][2] && !bag.occ[0][0] && !bag.occ[0][1], "占用表按新形状同步");
+  assert(DFR.placeAt(bag, 0, 0, 1, true), "再旋回横放挪到 (0,1)");
+  assert.strictEqual(bag.items[0].w, 2);
+  assert.strictEqual(bag.items[0].h, 1);
+  assert(bag.occ[1][0] && bag.occ[1][1] && !bag.occ[0][2], "占用表还原");
+  // 正方形旋转无实际变化但也不出错
+  const sq = { id: 2, name: "方块", grade: 1, len: 1, wid: 1, cells: 1, value: 50, perCell: 50 };
+  DFR.addToBag(bag, sq);
+  const i1 = bag.items.length - 1;
+  assert(DFR.placeAt(bag, i1, 0, 0, true), "单格旋转=原样");
+  assert.strictEqual(bag.items[i1].w, 1);
+});
+
 ok("鼠鼠摸金：未定价物品（value=null）不进掉落池、结算无 NaN", () => {
   // 数据里存在未定价物品（火箭燃料等，2026-08-06 起价值切数据帝真实物价）
   assert(DF_LOOT.items.some((i) => i.value === null), "前提：存在未定价物品");

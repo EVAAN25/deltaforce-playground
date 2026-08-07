@@ -118,6 +118,36 @@ with sync_playwright() as p:
         now = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{repo['idx']}]; return [e.x, e.y]; }}")
         check("同包拖拽挪位", now == [repo["x"], repo["y"]], f"{repo['from']} → {now}")
 
+    # 拖动中按 R 横竖切换：找一件非方形的包内物品，拖到可旋转落点
+    rot = pg.evaluate("""() => {
+      const Raid = window.DFR_UI._raid, DFR = window.DFR;
+      const bag = Raid.run.bagMain;
+      for (let idx = 0; idx < bag.items.length; idx++) {
+        const it = bag.items[idx];
+        if (it.w === it.h) continue;
+        for (let y = 0; y < bag.h; y++) for (let x = 0; x < bag.w; x++) {
+          if (DFR.canPlaceAt(bag, idx, x, y, true)) return { idx, x, y, w: it.w, h: it.h };
+        }
+      }
+      return null;
+    }""")
+    if rot:
+        cs = pg.evaluate("() => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bagcell'), 10) || 44")
+        r = pg.locator("#rpBagMain").bounding_box()
+        ib = pg.locator("#rpBagMain .bag-item").nth(rot["idx"]).bounding_box()
+        pg.mouse.move(ib["x"] + ib["width"] / 2, ib["y"] + ib["height"] / 2)
+        pg.mouse.down()
+        pg.mouse.move(ib["x"] + ib["width"] / 2 + 30, ib["y"] + ib["height"] / 2 + 30, steps=3)
+        pg.keyboard.press("r")
+        time.sleep(0.1)
+        pg.mouse.move(r["x"] + (rot["x"] + 0.5) * cs, r["y"] + (rot["y"] + 0.5) * cs, steps=8)
+        pg.mouse.up()
+        time.sleep(0.3)
+        wh = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{rot['idx']}]; return [e.w, e.h]; }}")
+        check("拖动中按R横竖切换", wh == [rot["h"], rot["w"]], f"{[rot['w'], rot['h']]} → {wh}")
+    else:
+        print("- 跳过旋转拖拽（包内没有非方形物品）")
+
     # 悬停包内物品按 F → 放回容器
     staged_before = pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length")
     ib = pg.locator("#rpBagMain .bag-item").first.bounding_box()

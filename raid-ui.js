@@ -437,6 +437,9 @@
       } else if (k === "f") {
         e.preventDefault();
         if (!hoverAct()) interact(); // 光标在物品上时 F = 放入/移出，否则 = 场景交互
+      } else if (k === "r" && Drag.cur) {
+        e.preventDefault();
+        rotateDrag(); // 拖动中按 R：横竖切换
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -551,7 +554,7 @@
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
-    const hint = Raid.overlay ? "双击/按F 放回容器 · 可拖拽挪位 · 拖到空白丢弃" : "双击/按F 丢弃 · 可拖拽";
+    const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（按R旋转）· 拖到空白丢弃" : "双击/按F 丢弃 · 拖拽挪位（按R旋转）";
     return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
@@ -713,9 +716,22 @@
     ghost.style.height = srcEl.offsetHeight + "px";
     document.body.appendChild(ghost);
     srcEl.classList.add("drag-src");
-    Drag.cur = { payload, ghost, srcEl, target: null };
+    Drag.cur = { payload, ghost, srcEl, target: null, rot: false, x: e.clientX, y: e.clientY };
     dragMove(e);
     return true;
+  }
+
+  // 拖动中按 R：横竖切换（仅包内物品；幽灵同步换形状）
+  function rotateDrag() {
+    const d = Drag.cur;
+    if (!d || d.payload.kind !== "bag") return;
+    d.rot = !d.rot;
+    const w = d.ghost.style.width;
+    d.ghost.style.width = d.ghost.style.height;
+    d.ghost.style.height = w;
+    d.ghost.classList.toggle("rot", d.rot);
+    Sfx.pickup();
+    dragMove({ clientX: d.x, clientY: d.y });
   }
 
   function dragTargetAt(payload, x, y) {
@@ -725,11 +741,12 @@
     if (grid) {
       const which = (grid.id === "rpBagSafe" || grid.id === "raidBagSafe") ? "bagSafe" : "bagMain";
       const item = dragItem(payload);
-      if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位
+      if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位（可 R 旋转）
         const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
         const r = grid.getBoundingClientRect();
         const cx = Math.floor((x - r.left) / cs), cy = Math.floor((y - r.top) / cs);
-        return { type: "repos", which, el: grid, cx, cy, ok: DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy) };
+        const rot = Drag.cur ? Drag.cur.rot : false;
+        return { type: "repos", which, el: grid, cx, cy, ok: DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, rot) };
       }
       return { type: "bag", which, el: grid, ok: !!item && fitsBagSmart(Raid.run[which], item) };
     }
@@ -744,6 +761,7 @@
   function dragMove(e) {
     const d = Drag.cur;
     if (!d) return;
+    d.x = e.clientX; d.y = e.clientY;
     d.ghost.style.left = e.clientX + "px";
     d.ghost.style.top = e.clientY + "px";
     const t = dragTargetAt(d.payload, e.clientX, e.clientY);
@@ -757,11 +775,11 @@
 
   function dragEnd(e) {
     const d = Drag.cur;
-    Drag.cur = null;
     if (!d) return;
+    const t = dragTargetAt(d.payload, e.clientX, e.clientY); // 先算落点（含旋转态）再收场
+    Drag.cur = null;
     d.ghost.remove();
     d.srcEl.classList.remove("drag-src");
-    const t = dragTargetAt(d.payload, e.clientX, e.clientY);
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
     if (t && t.el) t.el.classList.remove("drop-ok", "drop-bad");
     if (!t) { // 落在空白处：包内物品 = 丢弃；容器里的货 = 不动
@@ -769,8 +787,8 @@
       return;
     }
     if (!t.ok) return;
-    if (t.type === "repos") { // 同包挪位
-      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy)) { Sfx.pickup(); renderBags(); }
+    if (t.type === "repos") { // 同包挪位（带 R 旋转态）
+      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy, d.rot)) { Sfx.pickup(); renderBags(); }
       return;
     }
     if (t.type === "bag") {

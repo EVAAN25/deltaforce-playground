@@ -412,11 +412,13 @@
     return 0;
   }
 
-  // 能否把包内第 idx 件挪到以 (x,y) 为左上角的格子（不改变 bag；自身原位视为空）
-  function canPlaceAt(bag, idx, x, y) {
+  // 能否把包内第 idx 件挪到以 (x,y) 为左上角的格子（不改变 bag；自身原位视为空；rot=true 按横竖互换后的形状判定）
+  function canPlaceAt(bag, idx, x, y, rot) {
     const it = bag.items[idx];
-    if (!it || x < 0 || y < 0 || x + it.w > bag.w || y + it.h > bag.h) return false;
-    for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) {
+    if (!it) return false;
+    const w = rot ? it.h : it.w, h = rot ? it.w : it.h;
+    if (x < 0 || y < 0 || x + w > bag.w || y + h > bag.h) return false;
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       const cx = x + dx, cy = y + dy;
       const self = cx >= it.x && cx < it.x + it.w && cy >= it.y && cy < it.y + it.h;
       if (!self && bag.occ[cy][cx]) return false;
@@ -424,11 +426,12 @@
     return true;
   }
 
-  // 把包内第 idx 件挪到 (x,y)；成功返回 true，失败不动包
-  function placeAt(bag, idx, x, y) {
-    if (!canPlaceAt(bag, idx, x, y)) return false;
+  // 把包内第 idx 件挪到 (x,y)（rot=true 同时横竖互换）；成功返回 true，失败不动包
+  function placeAt(bag, idx, x, y, rot) {
+    if (!canPlaceAt(bag, idx, x, y, rot)) return false;
     const it = bag.items[idx];
     for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) bag.occ[it.y + dy][it.x + dx] = 0;
+    if (rot) { const t = it.w; it.w = it.h; it.h = t; }
     for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) bag.occ[y + dy][x + dx] = 1;
     it.x = x; it.y = y;
     return true;
