@@ -281,6 +281,27 @@
 
     <div id="raidResult" class="result hidden"></div>
 
+    <!-- 背包浮层（Tab/ESC 开关） -->
+    <div id="bagOverlay" class="raid-overlay hidden">
+      <div class="raid-panel bag-panel" id="bagPanel">
+        <div class="rp-head">
+          <h3>🐭 背包整理</h3>
+          <div class="rp-value" id="bagOvValue">价值【0】</div>
+        </div>
+        <div class="bag-ov-body">
+          <div class="raid-bag">
+            <h3>🎒 主背包 <small>被抓全掉光</small></h3>
+            <div class="bag-grid" id="bagOvMain"></div>
+          </div>
+          <div class="raid-bag">
+            <h3>🔐 安全箱 <small>死了也不掉</small></h3>
+            <div class="bag-grid small" id="bagOvSafe"></div>
+          </div>
+        </div>
+        <p class="rp-bag-tip">拖拽挪位（贴边自动横竖）· 包间互拖 · 双击/悬停按F/拖出面板外丢弃 · <b>Esc / Tab</b> 关闭</p>
+      </div>
+    </div>
+
     <!-- 搜索浮层 -->
     <div id="raidOverlay" class="raid-overlay hidden">
       <div class="raid-panel" id="raidPanel">

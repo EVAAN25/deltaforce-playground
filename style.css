@@ -487,6 +487,10 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .rp-bags .raid-bag h3 { font-size: 13px; }
 .rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px auto 0; max-width: calc(var(--bagcell) * 6 + 4px); }
 
+/* 背包浮层（Tab/ESC 呼出） */
+.bag-panel { max-width: 560px; }
+.bag-ov-body { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; align-items: flex-start; margin-top: 8px; }
+
 /* 拖拽（幽灵跟随 + 落点高亮） */
 .bag-item, .rp-stage-item { touch-action: none; user-select: none; -webkit-user-select: none; }
 .drag-ghost {

@@ -9,7 +9,7 @@
   const TS = 30; // 每格像素（720×480 / 24×16）
   const TIER_NAME = { 6: "顶级容器", 5: "高级容器", 1: "低级容器" };
   const GRADE_NAME = { 1: "灰", 2: "绿", 3: "蓝", 4: "紫", 5: "金", 6: "红" };
-  const TIP_DEFAULT = "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>F</b>（或点容器）开吃 · 站到撤离点按 <b>F</b> 引导撤离";
+  const TIP_DEFAULT = "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>F</b>（或点容器）开吃 · 站到撤离点按 <b>F</b> 引导撤离 · <b>Tab</b> 整理背包";
 
   // ---------- 图片兜底：品质色块 + 物品名首字 ----------
   window.__dfRaidImg = function (img) {
@@ -174,7 +174,7 @@
   }
 
   // ---------- 状态 ----------
-  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, hover: null, pointer: null, tickTimer: null, rafId: 0 };
+  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, bagOpen: false, keys: {}, hover: null, pointer: null, tickTimer: null, rafId: 0 };
 
   function newRun(mode) {
     let seed, cfg, level = null, practiceName = null;
@@ -330,7 +330,7 @@
 
   function tick() {
     const run = Raid.run;
-    if (!run || run.status !== "playing" || Raid.overlay) return;
+    if (!run || run.status !== "playing" || Raid.overlay || Raid.bagOpen) return;
     const now = performance.now();
     // 玩家移动
     if (now >= run.nextStep) {
@@ -437,6 +437,10 @@
       } else if (k === "f") {
         e.preventDefault();
         if (!hoverAct()) interact(); // 光标在物品上时 F = 放入/移出，否则 = 场景交互
+      } else if (k === "escape" || k === "tab") {
+        e.preventDefault();
+        if (k === "escape" && Raid.overlay) { closeSearch(); return; } // ESC 先关搜索
+        toggleBag(); // Tab 开关背包；搜索浮层开着时不动
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -444,7 +448,7 @@
       if (k) Raid.keys[k] = false;
     });
     canvas().addEventListener("pointerdown", (e) => {
-      if (!Raid.active || !Raid.run || Raid.run.status !== "playing" || Raid.overlay) return;
+      if (!Raid.active || !Raid.run || Raid.run.status !== "playing" || Raid.overlay || Raid.bagOpen) return;
       const run = Raid.run;
       const rect = canvas().getBoundingClientRect();
       const x = Math.floor((e.clientX - rect.left) / rect.width * run.map.w);
@@ -472,7 +476,7 @@
 
   function interact() {
     const run = Raid.run;
-    if (!run || run.status !== "playing" || Raid.overlay) return;
+    if (!run || run.status !== "playing" || Raid.overlay || Raid.bagOpen) return;
     const onExtract = run.map.extracts.some((e) => e.x === run.px && e.y === run.py);
     if (onExtract) {
       if (!run.extracting) {
@@ -485,6 +489,20 @@
     }
     const c = adjacentContainer();
     if (c) openSearch(c);
+  }
+
+  // ---------- 背包浮层（Tab/ESC 开关；开着时局内暂停，与搜索浮层互斥） ----------
+  function toggleBag() {
+    if (Raid.overlay || !Raid.run || Raid.run.status !== "playing") return;
+    Raid.bagOpen = !Raid.bagOpen;
+    $("#bagOverlay").classList.toggle("hidden", !Raid.bagOpen);
+    if (Raid.bagOpen) renderBags();
+  }
+
+  function closeBag() {
+    if (!Raid.bagOpen) return;
+    Raid.bagOpen = false;
+    $("#bagOverlay").classList.add("hidden");
   }
 
   function checkExtract(now) {
@@ -525,8 +543,8 @@
     return DFR.addToBagSmart(clone, item) !== 0;
   }
 
-  // 背包渲染：主页两个 + 搜索浮层里两个（同一数据，四处同步）
-  const BAG_GRIDS = { bagMain: ["#raidBagMain", "#rpBagMain"], bagSafe: ["#raidBagSafe", "#rpBagSafe"] };
+  // 背包渲染：主页两个 + 背包浮层两个 + 搜索浮层里两个（同一数据，六处同步）
+  const BAG_GRIDS = { bagMain: ["#raidBagMain", "#bagOvMain", "#rpBagMain"], bagSafe: ["#raidBagSafe", "#bagOvSafe", "#rpBagSafe"] };
   function renderBags() {
     const run = Raid.run;
     if (!run) return;
@@ -548,6 +566,7 @@
       }
     }
     syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
+    $("#bagOvValue").textContent = `价值【${DFR.fmt(DFR.bagValue(run.bagMain) + DFR.bagValue(run.bagSafe))}】`;
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
@@ -801,7 +820,11 @@
   // 丢弃判定：浮层开着时须拖出整个面板外才算空白；主页上拖到背包外即算
   function dropOutsidePanel(e) {
     const ov = Raid.overlay;
-    if (!ov || ov.cancelled) return true;
+    if (!ov || ov.cancelled) {
+      if (!Raid.bagOpen) return true;
+      const r = $("#bagPanel").getBoundingClientRect();
+      return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    }
     const r = $("#raidPanel").getBoundingClientRect();
     return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
   }
@@ -1078,6 +1101,7 @@
     run.extracting = 0;
     updateExtractBar();
     if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); Sfx.rustleStop(); }
+    closeBag();
 
     const mainV = DFR.bagValue(run.bagMain);
     const safeV = DFR.bagValue(run.bagSafe);
@@ -1254,5 +1278,6 @@
   });
   $("#rpSkip").addEventListener("click", () => { if (Raid.overlay) { Raid.overlay.auto = true; searchAll(Raid.overlay); } });
   $("#rpClose").addEventListener("click", closeSearch);
+  $("#bagOverlay").addEventListener("click", (e) => { if (e.target.id === "bagOverlay") closeBag(); }); // 点背板关闭
   if (location.hash === "#/raid") { Raid.active = true; render(); }
 })();

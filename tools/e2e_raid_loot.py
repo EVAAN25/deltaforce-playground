@@ -180,6 +180,22 @@ with sync_playwright() as p:
     # 关闭浮层 → 再开：已摸物品直接可见、不重新鉴定
     pg.click("#rpClose")
     time.sleep(0.3)
+
+    # Tab 打开背包浮层 → ESC 关闭 → Tab 开关（与搜索浮层互斥，须在关搜索后测）
+    pg.keyboard.press("Tab")
+    time.sleep(0.3)
+    check("Tab 打开背包浮层", pg.is_visible("#bagOverlay"))
+    ov_items = pg.evaluate("() => document.querySelectorAll('#bagOvMain .bag-item, #bagOvSafe .bag-item').length")
+    check("背包浮层渲染物品", ov_items == tot_after, f"{ov_items}/{tot_after}")
+    pg.keyboard.press("Escape")
+    time.sleep(0.3)
+    check("ESC 关闭背包浮层", not pg.is_visible("#bagOverlay"))
+    pg.keyboard.press("Tab")
+    time.sleep(0.2)
+    pg.keyboard.press("Tab")
+    time.sleep(0.2)
+    check("Tab 再按关闭", not pg.is_visible("#bagOverlay"))
+
     searched = pg.evaluate("() => window.DFR_UI._raid.run.searched")
     pg.keyboard.press("f")
     time.sleep(0.5)
@@ -187,8 +203,9 @@ with sync_playwright() as p:
     check("重开容器：已鉴定物品直接显示（无剪影）", sil == 0)
     drops_same = pg.evaluate("() => window.DFR_UI._raid.run.containers[0].drops.length")
     check("同一局容器内容不变", drops_same >= total, f"{drops_same}/{total}（放回会加件）")
-    pg.click("#rpClose")
+    pg.keyboard.press("Escape")
     time.sleep(0.3)
+    check("ESC 关闭搜索浮层", not pg.is_visible("#raidOverlay"))
     searched2 = pg.evaluate("() => window.DFR_UI._raid.run.searched")
     check("重开不重复计摸过数", searched2 == searched, f"{searched2}")
 
