@@ -54,11 +54,20 @@ with sync_playwright() as p:
     staged = pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length")
     check("待拾取区列出全部货", staged == total, f"{staged}/{total}")
 
+    # 首开鉴定完，直接悬停容器格子按 F → 入包（回归：revealItem 须补绑悬停）
+    gb = pg.locator("#rpGrid .rp-item.revealed:not(.taken)").first.bounding_box()
+    pg.mouse.move(gb["x"] + gb["width"] / 2, gb["y"] + gb["height"] / 2)
+    time.sleep(0.2)
+    pg.keyboard.press("f")
+    time.sleep(0.3)
+    bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+    check("首开直接对格子按 F 入包", bag_n == 1, f"bag={bag_n}")
+
     # 双击第一件 → 入包
     pg.dispatch_event("#rpStaging .rp-stage-item", "dblclick")
     time.sleep(0.3)
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-    check("双击放入背包", bag_n == 1)
+    check("双击放入背包", bag_n == 2)
 
     # 悬停按 F → 入包
     src = pg.locator("#rpStaging .rp-stage-item").first
@@ -68,7 +77,7 @@ with sync_playwright() as p:
     pg.keyboard.press("f")
     time.sleep(0.3)
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-    check("悬停按 F 放入背包", bag_n == 2, f"bag={bag_n}")
+    check("悬停按 F 放入背包", bag_n == 3, f"bag={bag_n}")
 
     # 悬在「入包」按钮上按 F → 不触发（F 只对物品本体生效）
     bb = pg.locator("#rpStaging .rp-stage-item button[data-act='main']").first.bounding_box()
@@ -79,13 +88,13 @@ with sync_playwright() as p:
     bag_n_btn = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
     check("悬在入包按钮上按 F 不触发", bag_n_btn == bag_n, f"bag={bag_n_btn}")
 
-    # 拖拽第三件（如有）→ 主背包
-    if total >= 3:
+    # 拖拽下一件（如待拾取区还有）→ 主背包
+    if pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length") > 0:
         sb = pg.locator("#rpStaging .rp-stage-item").first.bounding_box()
         db = pg.locator("#rpBagMain").bounding_box()
         drag(pg, sb, (db["x"] + db["width"] / 2, db["y"] + db["height"] / 2))
         bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-        check("拖拽放入背包", bag_n == 3)
+        check("拖拽放入背包", bag_n == 4, f"bag={bag_n}")
 
     # 同包拖拽挪位：找主背包里第一个能挪到别处的件，拖到该格
     repo = pg.evaluate("""() => {

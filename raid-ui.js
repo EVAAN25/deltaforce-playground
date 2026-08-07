@@ -820,13 +820,16 @@
     grid.querySelectorAll(".rp-silhouette").forEach((el) =>
       el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
     // 已揭晓未拿走的格子：悬停按 F 直接入包
-    grid.querySelectorAll(".rp-item.revealed:not(.taken)").forEach((el) => {
-      const i = Number(el.dataset.i);
-      el.addEventListener("pointerenter", () => { Raid.hover = { kind: "grid", i }; });
-      el.addEventListener("pointerleave", () => {
-        const h = Raid.hover;
-        if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
-      });
+    grid.querySelectorAll(".rp-item.revealed:not(.taken)").forEach((el) =>
+      bindGridHover(el, Number(el.dataset.i)));
+  }
+
+  // 容器格子悬停（悬停按 F 入包）；revealItem 就地揭晓的格子也要补绑
+  function bindGridHover(el, i) {
+    el.addEventListener("pointerenter", () => { Raid.hover = { kind: "grid", i }; });
+    el.addEventListener("pointerleave", () => {
+      const h = Raid.hover;
+      if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
     });
   }
 
@@ -878,8 +881,9 @@
     if (el) {
       el.classList.remove("rp-silhouette", "searching");
       el.classList.add("g" + d.item.grade, "revealed");
-      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】`;
+      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 悬停按F入包`;
       el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
+      bindGridHover(el, i); // 就地揭晓的格子补绑悬停（否则首开时按 F 不生效）
     }
     const panel = $("#raidPanel");
     if (d.item.meme) {
