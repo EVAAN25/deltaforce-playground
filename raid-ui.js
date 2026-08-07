@@ -174,7 +174,7 @@
   }
 
   // ---------- 状态 ----------
-  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, hover: null, tickTimer: null, rafId: 0 };
+  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, hover: null, pointer: null, tickTimer: null, rafId: 0 };
 
   function newRun(mode) {
     let seed, cfg, level = null, practiceName = null;
@@ -530,7 +530,6 @@
   function renderBags() {
     const run = Raid.run;
     if (!run) return;
-    Raid.hover = null; // 重渲染后旧下标失效，悬停重来
     const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
     for (const which of ["bagMain", "bagSafe"]) {
       for (const sel of BAG_GRIDS[which]) {
@@ -548,6 +547,7 @@
         });
       }
     }
+    syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
@@ -601,6 +601,29 @@
       return true;
     }
     return false;
+  }
+
+  // 重渲染后按当前光标位置重建悬停（元素被换掉/就地更新时 pointerenter 不会重发）
+  function syncHoverFromPointer() {
+    Raid.hover = null;
+    const p = Raid.pointer;
+    if (!p || !Raid.run) return;
+    const el = document.elementFromPoint(p.x, p.y);
+    if (!el) return;
+    const row = el.closest(".rp-stage-item");
+    if (row && !el.closest("button")) {
+      const i = [...document.querySelectorAll("#rpStaging .rp-stage-item")].indexOf(row);
+      if (i >= 0) { Raid.hover = { kind: "stage", i }; return; }
+    }
+    const gi = el.closest(".rp-item.revealed:not(.taken)");
+    if (gi) { Raid.hover = { kind: "grid", i: Number(gi.dataset.i) }; return; }
+    const bi = el.closest(".bag-item");
+    if (bi) {
+      const grid = bi.closest(".bag-grid");
+      const which = (grid.id === "rpBagSafe" || grid.id === "raidBagSafe") ? "bagSafe" : "bagMain";
+      const idx = [...grid.querySelectorAll(".bag-item")].indexOf(bi);
+      if (idx >= 0) Raid.hover = { kind: "bag", which, idx };
+    }
   }
 
   // 包 ↔ 包 挪动（拖拽落点在另一个背包上）
@@ -822,6 +845,7 @@
     // 已揭晓未拿走的格子：悬停按 F 直接入包
     grid.querySelectorAll(".rp-item.revealed:not(.taken)").forEach((el) =>
       bindGridHover(el, Number(el.dataset.i)));
+    syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
   }
 
   // 容器格子悬停（悬停按 F 入包）；revealItem 就地揭晓的格子也要补绑
@@ -902,7 +926,6 @@
   // 待拾取区：已鉴定未拿走的货（双击 / 悬停按F / 拖拽入包，按钮兜底）
   function renderStaging(ov) {
     const run = Raid.run;
-    Raid.hover = null; // 重渲染后旧下标失效，悬停重来
     const staged = stagedDrops(ov.c);
     ov.value = ov.c.drops.filter((d) => d.revealed).reduce((s, d) => s + d.item.value, 0);
     $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
@@ -944,6 +967,7 @@
     });
     $("#rpStaging").querySelectorAll("button").forEach((b) =>
       b.addEventListener("click", () => takeItem(ov, Number(b.dataset.i), b.dataset.act)));
+    syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
   }
 
   function takeItem(ov, i, act) {
@@ -1199,6 +1223,7 @@
 
   // ---------- 启动 ----------
   bindInput();
+  window.addEventListener("pointermove", (e) => { Raid.pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
   // 物品行的 img 默认可拖，会触发浏览器原生 HTML5 拖拽打断 pointer 流——全局拦掉
   document.addEventListener("dragstart", (e) => {
     if (e.target.closest && e.target.closest(".rp-stage-item, .bag-item, .rp-item")) e.preventDefault();

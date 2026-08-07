@@ -45,6 +45,17 @@ with sync_playwright() as p:
 
     # 等自动鉴定完
     n = 1
+    # 转圈时悬停第一件不动，揭晓瞬间直接按 F（回归：鼠标静止也须立即可按）
+    sb0 = pg.locator('.rp-silhouette[data-i="0"]').bounding_box()
+    pg.mouse.move(sb0["x"] + sb0["width"] / 2, sb0["y"] + sb0["height"] / 2)
+    for _ in range(60):
+        if pg.evaluate("() => !!document.querySelector('.rp-item[data-i=\"0\"].revealed')"): break
+        time.sleep(0.5)
+    pg.keyboard.press("f")
+    time.sleep(0.3)
+    bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+    check("揭晓瞬间不动鼠标按 F 即入包", bag_n == 1, f"bag={bag_n}")
+
     for _ in range(120):
         n = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-silhouette').length")
         if n == 0: break
@@ -52,16 +63,7 @@ with sync_playwright() as p:
     total = pg.evaluate("() => window.DFR_UI._raid.overlay.c.drops.length")
     check("自动逐件鉴定完成", n == 0, f"{total} 件")
     staged = pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length")
-    check("待拾取区列出全部货", staged == total, f"{staged}/{total}")
-
-    # 首开鉴定完，直接悬停容器格子按 F → 入包（回归：revealItem 须补绑悬停）
-    gb = pg.locator("#rpGrid .rp-item.revealed:not(.taken)").first.bounding_box()
-    pg.mouse.move(gb["x"] + gb["width"] / 2, gb["y"] + gb["height"] / 2)
-    time.sleep(0.2)
-    pg.keyboard.press("f")
-    time.sleep(0.3)
-    bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-    check("首开直接对格子按 F 入包", bag_n == 1, f"bag={bag_n}")
+    check("待拾取区列出剩余的货", staged == total - 1, f"{staged}/{total - 1}")
 
     # 双击第一件 → 入包
     pg.dispatch_event("#rpStaging .rp-stage-item", "dblclick")
