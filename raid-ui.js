@@ -924,7 +924,15 @@
         if (e.target.closest("button")) return; // 按钮不触发拖拽
         dragPress({ kind: "stage", i }, el, e);
       });
-      el.addEventListener("pointerenter", () => { Raid.hover = { kind: "stage", i }; });
+      // 悬停按 F 只在物品本体上生效（移到按钮区即失效）
+      el.addEventListener("pointerover", (e) => {
+        if (e.target.closest("button")) {
+          const h = Raid.hover;
+          if (h && h.kind === "stage" && h.i === i) Raid.hover = null;
+          return;
+        }
+        Raid.hover = { kind: "stage", i };
+      });
       el.addEventListener("pointerleave", () => {
         const h = Raid.hover;
         if (h && h.kind === "stage" && h.i === i) Raid.hover = null;

@@ -70,6 +70,15 @@ with sync_playwright() as p:
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
     check("悬停按 F 放入背包", bag_n == 2, f"bag={bag_n}")
 
+    # 悬在「入包」按钮上按 F → 不触发（F 只对物品本体生效）
+    bb = pg.locator("#rpStaging .rp-stage-item button[data-act='main']").first.bounding_box()
+    pg.mouse.move(bb["x"] + bb["width"] / 2, bb["y"] + bb["height"] / 2)
+    time.sleep(0.2)
+    pg.keyboard.press("f")
+    time.sleep(0.3)
+    bag_n_btn = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+    check("悬在入包按钮上按 F 不触发", bag_n_btn == bag_n, f"bag={bag_n_btn}")
+
     # 拖拽第三件（如有）→ 主背包
     if total >= 3:
         sb = pg.locator("#rpStaging .rp-stage-item").first.bounding_box()
