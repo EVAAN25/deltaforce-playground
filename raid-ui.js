@@ -573,7 +573,6 @@
     const entry = bag.items[idx];
     if (!entry) return;
     DFR.removeFromBag(bag, idx);
-    DF_APP.toast(`丢下了「${entry.item.name}」`);
     renderBags();
     updateHUD();
   }
