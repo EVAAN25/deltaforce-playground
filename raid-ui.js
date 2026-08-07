@@ -19,7 +19,7 @@
     img.replaceWith(div);
   };
   function itemImgHTML(item) {
-    return `<img loading="lazy" src="${item.img}" alt="${item.name}" data-name="${item.name}" data-grade="${item.grade}" onerror="window.__dfRaidImg(this)">`;
+    return `<img loading="lazy" draggable="false" src="${item.img}" alt="${item.name}" data-name="${item.name}" data-grade="${item.grade}" onerror="window.__dfRaidImg(this)">`;
   }
 
   // ---------- 音效（WebAudio 合成，无外部资源；首次开箱/按键时激活） ----------
@@ -102,17 +102,34 @@
       const c = ac(); if (!c) return;
       blip(520, c.currentTime, 0.06, "square", 0.09);
     }
-    // 撤离成功 BGM：按评级给不同情感
+    // 撤离成功放歌：按评级给不同情感（WebAudio 合成旋律 + 低音伴奏）
     function fanfare(g) {
       const c = ac(); if (!c) return;
-      const t = c.currentTime;
-      if (g === "SS" || g === "S") { // 吃撑了：凯旋大调琶音 + 长尾高音
-        [[523.25, 0.13], [659.25, 0.13], [784, 0.13], [1046.5, 0.42]].forEach(([f, d], i) => blip(f, t + i * 0.12, d, "sine", 0.2));
-        blip(1318.5, t + 0.48, 0.5, "sine", 0.14);
-      } else if (g === "A" || g === "B") { // 吃得还行：轻快三音上扬
-        [[523.25, 0.12], [659.25, 0.12], [784, 0.3]].forEach(([f, d], i) => blip(f, t + i * 0.12, d, "sine", 0.17));
-      } else { // 白跑一趟：平淡两音，有点丧
-        blip(392, t, 0.18, "sine", 0.14); blip(329.6, t + 0.2, 0.4, "sine", 0.12);
+      const t0 = c.currentTime + 0.03;
+      const N = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+      // notes = [[midi, 拍数]...]，midi=0 为休止；返回结束时刻
+      function seq(notes, type, vol, tStart, beat) {
+        let t = tStart;
+        for (const [m, b] of notes) {
+          if (m) blip(N(m), t, b * beat * 0.92, type, vol);
+          t += b * beat;
+        }
+        return t;
+      }
+      if (g === "SS" || g === "S") { // 吃撑了：凯旋进行曲（C 大调主旋律 + 低音 + 结尾高音琶音）
+        const beat = 0.155;
+        const tEnd = seq([
+          [72, 1], [76, 1], [79, 1], [84, 2], [79, 1], [84, 2],
+          [86, 1], [84, 1], [79, 1], [81, 3], [79, 1], [84, 4],
+        ], "sine", 0.2, t0, beat);
+        seq([[48, 2], [55, 2], [48, 2], [55, 2], [53, 2], [57, 2], [55, 4]], "triangle", 0.11, t0, beat * 2);
+        [[84, 0.5], [88, 0.5], [91, 0.5], [96, 2]].forEach(([m, b], i) => blip(N(m), tEnd + i * 0.09, b * beat, "sine", 0.15));
+      } else if (g === "A" || g === "B") { // 吃得还行：轻快上扬短歌
+        const beat = 0.15;
+        seq([[72, 1], [76, 1], [79, 1], [84, 2], [81, 1], [79, 1], [76, 1], [79, 3]], "sine", 0.18, t0, beat);
+        seq([[48, 2], [55, 2], [53, 2], [55, 4]], "triangle", 0.1, t0, beat * 2);
+      } else { // 白跑一趟：平淡三音，有点丧但活着回来了
+        seq([[72, 1], [76, 1], [79, 2]], "sine", 0.15, t0, 0.16);
       }
     }
     // 被抓：刺耳下行 + 低频重击
@@ -131,6 +148,30 @@
     }
     return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost };
   })();
+
+  // ---------- 撤离撒花（纯 DOM，无外部库） ----------
+  function confettiBurst(gradeG) {
+    const n = gradeG === "SS" ? 170 : gradeG === "S" ? 130 : gradeG === "A" ? 85 : gradeG === "B" ? 55 : 30;
+    const colors = ["#e0a83c", "#cf4b3a", "#5fae63", "#a06ee0", "#e08a3c", "#f0d78a"];
+    const layer = document.createElement("div");
+    layer.className = "confetti-layer";
+    for (let i = 0; i < n; i++) {
+      const pc = document.createElement("i");
+      pc.className = "confetti-pc";
+      const size = 5 + Math.random() * 7;
+      pc.style.left = Math.random() * 100 + "vw";
+      pc.style.width = size + "px";
+      pc.style.height = size * (0.45 + Math.random()) + "px";
+      pc.style.background = colors[(Math.random() * colors.length) | 0];
+      pc.style.setProperty("--cfd", (2.4 + Math.random() * 1.8) + "s");
+      pc.style.setProperty("--cfdl", (Math.random() * 0.9) + "s");
+      pc.style.setProperty("--cfsw", (Math.random() * 160 - 80) + "px");
+      pc.style.setProperty("--cfr", (360 + Math.random() * 720) + "deg");
+      layer.appendChild(pc);
+    }
+    document.body.appendChild(layer);
+    setTimeout(() => layer.remove(), 6000);
+  }
 
   // ---------- 状态 ----------
   const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, tickTimer: null, rafId: 0 };
@@ -174,6 +215,10 @@
   const canvas = () => $("#raidCanvas");
   const TIER_COLOR = { 6: "#e0a83c", 5: "#a06ee0", 1: "#6d8048" };
 
+  function containerLeftover(c) { // 容器里还剩几件没拿走（含未鉴定）
+    return c.drops ? c.drops.filter((d) => !d.taken).length : 0;
+  }
+
   function draw() {
     const run = Raid.run;
     const cv = canvas();
@@ -210,13 +255,14 @@
     for (const c of run.containers) {
       const cx = c.x * TS, cy = c.y * TS;
       if (c.searched) {
+        const left = containerLeftover(c);
         ctx.fillStyle = "#2a2f3a";
         ctx.fillRect(cx + 2, cy + 2, TS - 4, TS - 4);
-        ctx.strokeStyle = "#3a4150";
+        ctx.strokeStyle = left ? "#8a7440" : "#3a4150";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(cx + 2.5, cy + 2.5, TS - 5, TS - 5);
-        ctx.fillStyle = "#5a6272";
-        ctx.fillText("✓", cx + TS / 2, cy + TS / 2 + 1);
+        ctx.fillStyle = left ? "#c9a35a" : "#5a6272";
+        ctx.fillText(left ? "余" : "✓", cx + TS / 2, cy + TS / 2 + 1);
       } else {
         const col = TIER_COLOR[c.tier];
         ctx.fillStyle = col + "33";
@@ -302,11 +348,11 @@
         if (run.extracting) { run.extracting = 0; updateExtractBar(); } // 移动取消引导
         onEnterTile();
         detect();
-        // 点容器寻路到位后自动开搜
+        // 点容器寻路到位后自动开搜（摸过的容器也能再开）
         if (!run.queue.length && run.autoSearch) {
           const c = run.autoSearch;
           run.autoSearch = null;
-          if (!c.searched && Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1 && run.status === "playing") openSearch(c);
+          if (Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1 && run.status === "playing") openSearch(c);
         }
       }
     }
@@ -346,13 +392,19 @@
     const onExtract = run.map.extracts.some((e) => e.x === run.px && e.y === run.py);
     const adj = adjacentContainer();
     if (onExtract) setTip(`到撤离点了！按 <b>F</b> 开始引导（${run.map.cfg.extractMs / 1000} 秒，期间不能走动，被看见＝被抓）`);
-    else if (adj) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>F</b> 开吃`);
+    else if (adj) {
+      if (!adj.searched) setTip(`旁边是「${adj.name}」（${TIER_NAME[adj.tier]}），按 <b>F</b> 开吃`);
+      else {
+        const left = containerLeftover(adj);
+        setTip(left ? `「${adj.name}」摸过了，里面还剩 ${left} 件，按 <b>F</b> 接着拿` : `「${adj.name}」早被拿空了`);
+      }
+    }
     else setTip(TIP_DEFAULT);
   }
 
   function adjacentContainer() {
     const run = Raid.run;
-    return run.containers.find((c) => !c.searched &&
+    return run.containers.find((c) =>
       Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1) || null;
   }
 
@@ -399,11 +451,11 @@
       const x = Math.floor((e.clientX - rect.left) / rect.width * run.map.w);
       const y = Math.floor((e.clientY - rect.top) / rect.height * run.map.h);
       if (x < 0 || y < 0 || x >= run.map.w || y >= run.map.h) return;
-      // 点相邻的容器 = 直接开搜
+      // 点相邻的容器 = 直接开搜（摸过的也能再翻）
       const c = run.containers.find((cc) => cc.x === x && cc.y === y);
-      if (c && !c.searched && Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1) { openSearch(c); return; }
+      if (c && Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1) { openSearch(c); return; }
       // 点远处的容器 = 寻路到它旁边，到位自动开搜
-      if (c && !c.searched) {
+      if (c) {
         const adj = [{ x: c.x + 1, y: c.y }, { x: c.x - 1, y: c.y }, { x: c.x, y: c.y + 1 }, { x: c.x, y: c.y - 1 }]
           .filter((t) => t.x >= 0 && t.y >= 0 && t.x < run.map.w && t.y < run.map.h && !walkBlocked(t.x, t.y));
         let best = null;
@@ -469,25 +521,39 @@
     return !!DFR.packFirstFit(occ, bag.w, bag.h, item.len, item.wid, true);
   }
 
+  // 背包渲染：主页两个 + 搜索浮层里两个（同一数据，四处同步）
+  const BAG_GRIDS = { bagMain: ["#raidBagMain", "#rpBagMain"], bagSafe: ["#raidBagSafe", "#rpBagSafe"] };
   function renderBags() {
     const run = Raid.run;
     if (!run) return;
     const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
-    $("#raidBagMain").innerHTML = run.bagMain.items.map((e) => bagItemAt(e, cs)).join("");
-    $("#raidBagSafe").innerHTML = run.bagSafe.items.map((e) => bagItemAt(e, cs)).join("");
-    $("#raidBagMain").querySelectorAll(".bag-item").forEach((el, i) =>
-      el.addEventListener("click", () => discard("bagMain", i)));
-    $("#raidBagSafe").querySelectorAll(".bag-item").forEach((el, i) =>
-      el.addEventListener("click", () => discard("bagSafe", i)));
+    for (const which of ["bagMain", "bagSafe"]) {
+      for (const sel of BAG_GRIDS[which]) {
+        const el = $(sel);
+        if (!el) continue;
+        el.innerHTML = run[which].items.map((e) => bagItemAt(e, cs)).join("");
+        el.querySelectorAll(".bag-item").forEach((itemEl, i) => {
+          itemEl.addEventListener("dblclick", () => onBagDbl(which, i));
+          bindDrag(itemEl, { kind: "bag", which, idx: i });
+        });
+      }
+    }
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
-    return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· 点击丢弃"
+    const hint = Raid.overlay ? "双击放回容器 · 可拖拽" : "双击丢弃 · 可拖拽";
+    return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
       <div class="bi-name">${it.name}</div>
       ${entry.w * entry.h > 1 ? `<div class="bi-val">${DFR.fmt(it.perCell)}/格</div>` : ""}
     </div>`;
+  }
+
+  // 双击包内物品：浮层开着 = 放回当前容器；否则 = 丢弃
+  function onBagDbl(which, idx) {
+    if (Raid.overlay && !Raid.overlay.cancelled) returnToContainer(which, idx);
+    else discard(which, idx);
   }
 
   function discard(which, idx) {
@@ -502,24 +568,187 @@
     updateHUD();
   }
 
-  // ---------- 搜索浮层（官方形态：剪影全见 → 逐件点击鉴定） ----------
+  // 包 ↔ 包 挪动（拖拽落点在另一个背包上）
+  function moveBag(fromWhich, idx, toWhich) {
+    const run = Raid.run;
+    if (!run || run.status !== "playing") return;
+    const entry = run[fromWhich].items[idx];
+    if (!entry) return;
+    if (!fitsBag(run[toWhich], entry.item)) {
+      DF_APP.toast(toWhich === "bagSafe" ? "安全箱塞不下这件" : "主背包塞不下这件");
+      return;
+    }
+    DFR.removeFromBag(run[fromWhich], idx);
+    DFR.addToBag(run[toWhich], entry.item);
+    Sfx.pickup();
+    DF_APP.toast(`「${entry.item.name}」挪到${toWhich === "bagSafe" ? "安全箱" : "主背包"}`);
+    renderBags();
+    updateHUD();
+  }
+
+  // ---------- 拖拽（pointer 实现，桌面 / 触屏通用；位移超阈值才算拖，兼容点击与双击） ----------
+  const Drag = { cur: null };
+
+  function dragItem(payload) {
+    const run = Raid.run;
+    if (!run) return null;
+    if (payload.kind === "stage") {
+      const ov = Raid.overlay;
+      if (!ov || ov.cancelled) return null;
+      const staged = ov.c.drops.filter((d) => d.revealed && !d.taken);
+      const d = staged[payload.i];
+      return d ? d.item : null;
+    }
+    const entry = run[payload.which].items[payload.idx];
+    return entry ? entry.item : null;
+  }
+
+  function bindDrag(el, payload) {
+    el.addEventListener("pointerdown", (e) => dragPress(payload, el, e));
+  }
+
+  function dragPress(payload, el, e) {
+    if (e.button != null && e.button !== 0) return;
+    if (Raid.run && Raid.run.status !== "playing") return;
+    const sx = e.clientX, sy = e.clientY;
+    let started = false;
+    const move = (ev) => {
+      if (!started) {
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8) return;
+        started = dragBegin(payload, el, ev);
+        if (!started) { cleanup(); return; }
+      }
+      dragMove(ev);
+    };
+    const up = (ev) => {
+      cleanup();
+      if (started) dragEnd(ev);
+    };
+    const cancel = () => { // 原生拖拽/系统手势打断：只收场，不落点
+      cleanup();
+      if (started) dragAbort();
+    };
+    const cleanup = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+  }
+
+  function dragAbort() {
+    const d = Drag.cur;
+    Drag.cur = null;
+    if (!d) return;
+    d.ghost.remove();
+    d.srcEl.classList.remove("drag-src");
+    if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
+  }
+
+  function dragBegin(payload, srcEl, e) {
+    if (!dragItem(payload)) return false;
+    const ghost = srcEl.cloneNode(true);
+    ghost.classList.add("drag-ghost");
+    ghost.style.width = srcEl.offsetWidth + "px";
+    ghost.style.height = srcEl.offsetHeight + "px";
+    document.body.appendChild(ghost);
+    srcEl.classList.add("drag-src");
+    Drag.cur = { payload, ghost, srcEl, target: null };
+    dragMove(e);
+    return true;
+  }
+
+  function dragTargetAt(payload, x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    const grid = el.closest(".bag-grid");
+    if (grid) {
+      const which = (grid.id === "rpBagSafe" || grid.id === "raidBagSafe") ? "bagSafe" : "bagMain";
+      if (payload.kind === "bag" && payload.which === which) return null;
+      const item = dragItem(payload);
+      return { type: "bag", which, el: grid, ok: !!item && fitsBag(Raid.run[which], item) };
+    }
+    // 包内物品拖回容器（仅搜索浮层开着时）
+    if (payload.kind === "bag" && Raid.overlay && !Raid.overlay.cancelled) {
+      const st = el.closest("#rpStaging") || el.closest(".rp-grid-wrap");
+      if (st) return { type: "container", el: st, ok: true };
+    }
+    return null;
+  }
+
+  function dragMove(e) {
+    const d = Drag.cur;
+    if (!d) return;
+    d.ghost.style.left = e.clientX + "px";
+    d.ghost.style.top = e.clientY + "px";
+    const t = dragTargetAt(d.payload, e.clientX, e.clientY);
+    if (d.target && d.target.el && d.target.el !== (t && t.el)) d.target.el.classList.remove("drop-ok", "drop-bad");
+    d.target = t;
+    if (t) {
+      t.el.classList.remove("drop-ok", "drop-bad");
+      t.el.classList.add(t.ok ? "drop-ok" : "drop-bad");
+    }
+  }
+
+  function dragEnd(e) {
+    const d = Drag.cur;
+    Drag.cur = null;
+    if (!d) return;
+    d.ghost.remove();
+    d.srcEl.classList.remove("drag-src");
+    const t = dragTargetAt(d.payload, e.clientX, e.clientY);
+    if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
+    if (t && t.el) t.el.classList.remove("drop-ok", "drop-bad");
+    if (!t || !t.ok) return;
+    if (t.type === "bag") {
+      const act = t.which === "bagSafe" ? "safe" : "main";
+      if (d.payload.kind === "stage") takeItem(Raid.overlay, d.payload.i, act);
+      else moveBag(d.payload.which, d.payload.idx, t.which);
+    } else if (t.type === "container") {
+      returnToContainer(d.payload.which, d.payload.idx);
+    }
+  }
+
+  // ---------- 搜索浮层（官方形态：剪影全见 → 逐件点击鉴定；摸过的容器可反复翻） ----------
+  function stagedDrops(c) { return c.drops.filter((d) => d.revealed && !d.taken); }
+
   function openSearch(c) {
     const run = Raid.run;
-    if (!c.drops) { // 开箱现场随机：内容与布局每开都随机，只有爆率固定
+    if (!c.drops) { // 首开现场随机：内容与布局每局每箱只 roll 一次，之后整局不变
       c.drops = DFR.rollContainer(Math.random, c, LOOT);
     }
-    const ov = { c, searching: null, auto: false, done: false, cancelled: false, value: 0, staging: [] };
+    const ov = { c, searching: null, auto: false, done: false, cancelled: false, value: 0 };
     Raid.overlay = ov;
     run.queue = [];
 
     $("#rpTitle").innerHTML = `${c.name}<span class="rp-tier">${TIER_NAME[c.tier]} · ${c.w}×${c.h}</span>`;
-    $("#rpValue").textContent = "价值【0】";
-    $("#rpMsg").textContent = c.drops.length ? "民以食为天，开吃！—— 转得越久越值钱" : "这容器比鼠鼠的脸还干净……";
-    $("#rpStaging").innerHTML = "";
     $("#rpClose").classList.remove("hidden");
     $("#rpSkip").classList.add("hidden"); // 开箱即自动逐件搜索，无需手动
 
-    // 官方：开箱即见全部物品剪影（占格形状可见，可预判大件），随后自动逐件鉴定
+    renderGridItems(ov);
+    renderStaging(ov); // 同步价值计数与待拾取区（含重开时的遗留货）
+    $("#raidOverlay").classList.remove("hidden");
+
+    const pending = c.drops.filter((d) => !d.revealed).length;
+    if (!c.drops.length) {
+      ov.done = true;
+      $("#rpMsg").textContent = "这容器比鼠鼠的脸还干净……";
+    } else if (pending) {
+      $("#rpMsg").textContent = c.searched ? "上次没摸完，接着鉴定……" : "民以食为天，开吃！—— 转得越久越值钱";
+      ov.auto = true; // 交互后直接开始，逐件自动鉴定
+      searchAll(ov);
+    } else {
+      ov.done = true;
+      const left = stagedDrops(c).length;
+      $("#rpMsg").textContent = left ? `都鉴定过了，还剩 ${left} 件在箱里，要拿就拿` : "早被拿空了，一件不剩";
+    }
+  }
+
+  // 容器格子：剪影（未鉴定）/ 已揭晓 / 已拿走 三态渲染
+  function renderGridItems(ov) {
+    const c = ov.c;
     const grid = $("#rpGrid");
     grid.style.gridTemplateColumns = `repeat(${c.w}, 44px)`;
     grid.style.gridAutoRows = "44px";
@@ -527,19 +756,21 @@
     c.drops.forEach((d) => {
       for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
     });
-    let html = c.drops.map((d, i) =>
-      `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格"
-        style="grid-column:${d.x + 1}/span ${d.w};grid-row:${d.y + 1}/span ${d.h}"><span class="rp-unknown">?</span></div>`).join("");
+    let html = c.drops.map((d, i) => {
+      const pos = `grid-column:${d.x + 1}/span ${d.w};grid-row:${d.y + 1}/span ${d.h}`;
+      if (!d.revealed) {
+        return `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格" style="${pos}"><span class="rp-unknown">?</span></div>`;
+      }
+      return `<div class="rp-item revealed g${d.item.grade}${d.taken ? " taken" : ""}" data-i="${i}"
+        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : ""}" style="${pos}">
+        ${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div></div>`;
+    }).join("");
     for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
       if (!occ[y][x]) html += `<div class="rp-empty" style="grid-column:${x + 1};grid-row:${y + 1}"></div>`;
     }
     grid.innerHTML = html;
     grid.querySelectorAll(".rp-silhouette").forEach((el) =>
       el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
-    $("#raidOverlay").classList.remove("hidden");
-    if (!c.drops.length) { ov.done = true; return; }
-    ov.auto = true; // 交互后直接开始，逐件自动鉴定
-    searchAll(ov);
   }
 
   // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
@@ -580,7 +811,7 @@
     ov.done = true;
     ov.auto = false;
     $("#rpSkip").classList.add("hidden");
-    $("#rpMsg").textContent = ov.staging.length ? "不够不够，继续吃！—— 点下面的货入包" : "搜完了，一件不剩";
+    $("#rpMsg").textContent = stagedDrops(ov.c).length ? "不够不够，继续吃！—— 双击 / 拖拽入包" : "搜完了，一件不剩";
   }
 
   function revealItem(ov, d) {
@@ -593,9 +824,6 @@
       el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】`;
       el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
     }
-    ov.staging.push(d);
-    ov.value += d.item.value;
-    $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
     const panel = $("#raidPanel");
     if (d.item.meme) {
       $("#rpMsg").textContent = DFR.MEME_TEXT;
@@ -610,13 +838,17 @@
     checkAllRevealed(ov);
   }
 
+  // 待拾取区：已鉴定未拿走的货（双击 / 拖拽入包，按钮兜底）
   function renderStaging(ov) {
     const run = Raid.run;
-    $("#rpStaging").innerHTML = ov.staging.map((d, i) => {
+    const staged = stagedDrops(ov.c);
+    ov.value = ov.c.drops.filter((d) => d.revealed).reduce((s, d) => s + d.item.value, 0);
+    $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
+    $("#rpStaging").innerHTML = staged.map((d, i) => {
       const it = d.item;
       const canMain = fitsBag(run.bagMain, it);
       const canSafe = fitsBag(run.bagSafe, it);
-      return `<div class="rp-stage-item g${it.grade}">
+      return `<div class="rp-stage-item g${it.grade}" title="双击放入背包 · 可拖拽">
         ${itemImgHTML(it)}
         <span><span class="si-name">${it.name}</span><span class="si-meta">${GRADE_NAME[it.grade]} · ${it.len}×${it.wid} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】</span></span>
         <span class="si-btns">
@@ -625,20 +857,29 @@
         </span>
       </div>`;
     }).join("");
+    $("#rpStaging").querySelectorAll(".rp-stage-item").forEach((el, i) => {
+      el.addEventListener("dblclick", (e) => {
+        if (e.target.closest("button")) return;
+        autoTake(ov, i);
+      });
+      el.addEventListener("pointerdown", (e) => {
+        if (e.target.closest("button")) return; // 按钮不触发拖拽
+        dragPress({ kind: "stage", i }, el, e);
+      });
+    });
     $("#rpStaging").querySelectorAll("button").forEach((b) =>
       b.addEventListener("click", () => takeItem(ov, Number(b.dataset.i), b.dataset.act)));
   }
 
   function takeItem(ov, i, act) {
     const run = Raid.run;
-    const d = ov.staging[i];
+    const d = stagedDrops(ov.c)[i];
     if (!d) return;
     const bag = act === "safe" ? run.bagSafe : run.bagMain;
     if (!DFR.addToBag(bag, d.item)) {
       DF_APP.toast(act === "safe" ? "安全箱塞不下这件" : "背包塞不下了，丢点别的或留下它");
       return;
     }
-    ov.staging.splice(i, 1);
     d.taken = true;
     const gi = ov.c.drops.indexOf(d);
     const gel = $("#rpGrid").querySelector(`.rp-item[data-i="${gi}"]`);
@@ -650,18 +891,52 @@
     updateHUD();
   }
 
+  // 双击入包：主背包优先，塞不下试安全箱
+  function autoTake(ov, i) {
+    const run = Raid.run;
+    const d = stagedDrops(ov.c)[i];
+    if (!d) return;
+    if (fitsBag(run.bagMain, d.item)) takeItem(ov, i, "main");
+    else if (fitsBag(run.bagSafe, d.item)) takeItem(ov, i, "safe");
+    else DF_APP.toast("背包和安全箱都塞不下了，先腾点地方");
+  }
+
+  // 包内物品放回当前容器（重新装箱进格子，之后随时可再拿）
+  function returnToContainer(which, idx) {
+    const run = Raid.run;
+    const ov = Raid.overlay;
+    if (!run || !ov || ov.cancelled || run.status !== "playing") return;
+    const entry = run[which].items[idx];
+    if (!entry) return;
+    const c = ov.c;
+    const occ = DFR.makeGrid(c.w, c.h, 0);
+    c.drops.forEach((d) => {
+      if (d.taken) return;
+      for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
+    });
+    const pos = DFR.packFirstFit(occ, c.w, c.h, entry.item.len, entry.item.wid, true);
+    if (!pos) { DF_APP.toast("容器里没空位放回去了"); return; }
+    DFR.removeFromBag(run[which], idx);
+    c.drops.push({ item: entry.item, x: pos.x, y: pos.y, w: pos.w, h: pos.h, revealed: true, taken: false });
+    Sfx.pickup();
+    DF_APP.toast(`「${entry.item.name}」放回「${c.name}」`);
+    renderGridItems(ov);
+    renderStaging(ov);
+    renderBags();
+    updateHUD();
+  }
+
   function closeSearch() {
     const ov = Raid.overlay;
     if (!ov) return;
     ov.cancelled = true;
     Sfx.rustleStop();
-    const left = ov.c.drops.filter((d) => !d.revealed).length + ov.staging.length;
-    if (left) DF_APP.toast(`${left} 件带不走，留给下一只鼠了`);
+    const left = containerLeftover(ov.c);
     const run = Raid.run;
-    ov.c.searched = true;
-    run.searched++;
+    if (!ov.c.searched) { ov.c.searched = true; run.searched++; } // 只首次计入"摸过"
     Raid.overlay = null;
     $("#raidOverlay").classList.add("hidden");
+    if (left) DF_APP.toast(`${left} 件留在「${ov.c.name}」里了，随时可以回来拿`);
     updateHUD();
     onEnterTile();
     // 关浮层瞬间可能被巡逻队盯上
@@ -685,8 +960,11 @@
       .map((e) => e.item);
 
     // 结局音效与画面反馈
-    if (outcome === "extracted") Sfx.fanfare(DFR.raidGrade(value).g);
-    else if (outcome === "caught") {
+    if (outcome === "extracted") {
+      const g = DFR.raidGrade(value).g;
+      Sfx.fanfare(g);      // 放歌：按评级三档情绪
+      confettiBurst(g);    // 撒花：评级越高越多
+    } else if (outcome === "caught") {
       Sfx.sting();
       const st = document.querySelector(".raid-stage");
       if (st) { st.classList.remove("death"); void st.offsetWidth; st.classList.add("death"); }
@@ -839,10 +1117,14 @@
     if (!Raid.active) loopStop();
   }
 
-  window.DFR_UI = { render, setMode, onRoute, getMode: () => Raid.mode };
+  window.DFR_UI = { render, setMode, onRoute, getMode: () => Raid.mode, _raid: Raid }; // _raid 供自动化自测
 
   // ---------- 启动 ----------
   bindInput();
+  // 物品行的 img 默认可拖，会触发浏览器原生 HTML5 拖拽打断 pointer 流——全局拦掉
+  document.addEventListener("dragstart", (e) => {
+    if (e.target.closest && e.target.closest(".rp-stage-item, .bag-item, .rp-item")) e.preventDefault();
+  });
   $("#rpSkip").addEventListener("click", () => { if (Raid.overlay) { Raid.overlay.auto = true; searchAll(Raid.overlay); } });
   $("#rpClose").addEventListener("click", closeSearch);
   if (location.hash === "#/raid") { Raid.active = true; render(); }

@@ -433,7 +433,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 }
 .raid-panel {
   background: var(--card); border: 1px solid var(--orange-deep); border-radius: var(--radius);
-  box-shadow: var(--shadow-layer); padding: 16px; max-width: 640px; width: 100%;
+  box-shadow: var(--shadow-layer); padding: 16px; max-width: 860px; width: 100%;
   max-height: 92vh; overflow-y: auto;
   animation: rise .25s ease both;
 }
@@ -477,6 +477,40 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .rp-item.revealed { z-index: 2; }
 .rp-item.taken { opacity: .35; filter: grayscale(.7); }
 .rp-empty { border-radius: 6px; background: rgba(255, 255, 255, .02); border: 1px solid rgba(255, 255, 255, .05); }
+
+/* 搜索浮层：容器 + 背包并排 */
+.rp-body { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.rp-left { flex: 1 1 320px; min-width: 0; }
+.rp-bags { flex: 0 1 auto; }
+.rp-bags .raid-bag { margin-bottom: 12px; }
+.rp-bags .raid-bag h3 { font-size: 13px; }
+.rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px 0 0; }
+
+/* 拖拽（幽灵跟随 + 落点高亮） */
+.bag-item, .rp-stage-item { touch-action: none; user-select: none; -webkit-user-select: none; }
+.drag-ghost {
+  position: fixed; z-index: 99; pointer-events: none; opacity: .88;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; transform: translate(-50%, -50%) scale(1.05);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+}
+.drag-ghost img, .drag-ghost .rit-fb { width: 60%; max-height: 55%; object-fit: contain; }
+.bag-grid.drop-ok { border-color: var(--green, #5fae63); box-shadow: 0 0 0 2px rgba(95, 174, 99, .55); }
+.bag-grid.drop-bad { border-color: var(--red); box-shadow: 0 0 0 2px rgba(208, 75, 58, .5); }
+.rp-staging.drop-ok, .rp-grid-wrap.drop-ok { outline: 2px dashed rgba(224, 138, 60, .7); outline-offset: 4px; border-radius: 8px; }
+.bag-item.drag-src, .rp-stage-item.drag-src { opacity: .35; }
+
+/* 撤离撒花 */
+.confetti-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+.confetti-pc {
+  position: absolute; top: -16px; border-radius: 2px;
+  animation: confetti-fall var(--cfd, 3s) cubic-bezier(.2, .6, .6, 1) var(--cfdl, 0s) both;
+}
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -4vh, 0) rotate(0deg); opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translate3d(var(--cfsw, 0px), 108vh, 0) rotate(var(--cfr, 720deg)); opacity: 0; }
+}
 
 /* 关卡选择 */
 .raid-levels { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0 0 14px; }
