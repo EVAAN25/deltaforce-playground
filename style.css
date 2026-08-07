@@ -474,7 +474,8 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 }
 @keyframes rp-spin { to { transform: rotate(360deg); } }
 @keyframes rp-prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.rp-item.revealed { z-index: 2; }
+.rp-item.revealed { z-index: 2; cursor: pointer; }
+.rp-item.revealed.taken { cursor: default; }
 .rp-item.taken { opacity: .35; filter: grayscale(.7); }
 .rp-empty { border-radius: 6px; background: rgba(255, 255, 255, .02); border: 1px solid rgba(255, 255, 255, .05); }
 
@@ -535,10 +536,11 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .rp-msg { min-height: 1.5em; text-align: center; font-size: 14px; color: var(--g5); font-weight: 700; margin: 4px 0; }
 .rp-staging { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .rp-stage-item {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
   background: var(--bg-deep); border: 1px solid; border-radius: var(--radius-sm);
   padding: 6px 10px; font-size: 13px;
 }
+.rp-stage-item .si-btns .btn { cursor: pointer; }
 .rp-stage-item img, .rp-stage-item .rit-fb { width: 34px; height: 34px; object-fit: contain; flex: none; }
 .rp-stage-item .si-name { font-weight: 700; }
 .rp-stage-item .si-meta { color: var(--ink-soft); font-size: 12px; margin-left: 6px; }
