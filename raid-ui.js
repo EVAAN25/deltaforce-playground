@@ -675,6 +675,12 @@
       const d = staged[payload.i];
       return d ? d.item : null;
     }
+    if (payload.kind === "grid") { // 容器格子里已搜出的物品
+      const ov = Raid.overlay;
+      if (!ov || ov.cancelled) return null;
+      const d = ov.c.drops[payload.i];
+      return d && d.revealed && !d.taken ? d.item : null;
+    }
     const entry = run[payload.which].items[payload.idx];
     return entry ? entry.item : null;
   }
@@ -810,6 +816,10 @@
     if (t.type === "bag") {
       const act = t.which === "bagSafe" ? "safe" : "main";
       if (d.payload.kind === "stage") takeItem(Raid.overlay, d.payload.i, act);
+      else if (d.payload.kind === "grid") { // 容器格子直接拖入包
+        const si = stagedDrops(Raid.overlay.c).indexOf(Raid.overlay.c.drops[d.payload.i]);
+        if (si >= 0) takeItem(Raid.overlay, si, act);
+      }
       else moveBag(d.payload.which, d.payload.idx, t.which);
     } else if (t.type === "container") {
       returnToContainer(d.payload.which, d.payload.idx);
@@ -879,7 +889,7 @@
         return `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格" style="${pos}"><span class="rp-unknown">?</span></div>`;
       }
       return `<div class="rp-item revealed g${d.item.grade}${d.taken ? " taken" : ""}" data-i="${i}"
-        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : ""}" style="${pos}">
+        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : " · 悬停按F/拖拽入包"}" style="${pos}">
         ${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div></div>`;
     }).join("");
     for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
@@ -888,19 +898,20 @@
     grid.innerHTML = html;
     grid.querySelectorAll(".rp-silhouette").forEach((el) =>
       el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
-    // 已揭晓未拿走的格子：悬停按 F 直接入包
+    // 已揭晓未拿走的格子：悬停按 F / 直接拖进背包
     grid.querySelectorAll(".rp-item.revealed:not(.taken)").forEach((el) =>
-      bindGridHover(el, Number(el.dataset.i)));
+      bindGridItem(el, Number(el.dataset.i)));
     syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
   }
 
-  // 容器格子悬停（悬停按 F 入包）；revealItem 就地揭晓的格子也要补绑
-  function bindGridHover(el, i) {
+  // 容器格子交互（悬停按 F 入包 + 可直接拖进背包）；revealItem 就地揭晓的格子也要补绑
+  function bindGridItem(el, i) {
     el.addEventListener("pointerenter", () => { Raid.hover = { kind: "grid", i }; });
     el.addEventListener("pointerleave", () => {
       const h = Raid.hover;
       if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
     });
+    el.addEventListener("pointerdown", (e) => dragPress({ kind: "grid", i }, el, e));
   }
 
   // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
@@ -951,9 +962,9 @@
     if (el) {
       el.classList.remove("rp-silhouette", "searching");
       el.classList.add("g" + d.item.grade, "revealed");
-      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 悬停按F入包`;
+      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 悬停按F/拖拽入包`;
       el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
-      bindGridHover(el, i); // 就地揭晓的格子补绑悬停（否则首开时按 F 不生效）
+      bindGridItem(el, i); // 就地揭晓的格子补绑交互（否则首开时按 F/拖拽不生效）
     }
     const panel = $("#raidPanel");
     if (d.item.meme) {
