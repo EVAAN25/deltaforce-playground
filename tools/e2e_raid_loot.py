@@ -118,7 +118,7 @@ with sync_playwright() as p:
         now = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{repo['idx']}]; return [e.x, e.y]; }}")
         check("同包拖拽挪位", now == [repo["x"], repo["y"]], f"{repo['from']} → {now}")
 
-    # 拖动中按 R 横竖切换：找一件非方形的包内物品，拖到可旋转落点
+    # 自动横竖：把非方形物品拖到「当前朝向放不下、换朝向能放」的格子
     rot = pg.evaluate("""() => {
       const Raid = window.DFR_UI._raid, DFR = window.DFR;
       const bag = Raid.run.bagMain;
@@ -126,7 +126,8 @@ with sync_playwright() as p:
         const it = bag.items[idx];
         if (it.w === it.h) continue;
         for (let y = 0; y < bag.h; y++) for (let x = 0; x < bag.w; x++) {
-          if (DFR.canPlaceAt(bag, idx, x, y, true)) return { idx, x, y, w: it.w, h: it.h };
+          if (!DFR.canPlaceAt(bag, idx, x, y, false) && DFR.canPlaceAt(bag, idx, x, y, true))
+            return { idx, x, y, w: it.w, h: it.h };
         }
       }
       return null;
@@ -138,15 +139,13 @@ with sync_playwright() as p:
         pg.mouse.move(ib["x"] + ib["width"] / 2, ib["y"] + ib["height"] / 2)
         pg.mouse.down()
         pg.mouse.move(ib["x"] + ib["width"] / 2 + 30, ib["y"] + ib["height"] / 2 + 30, steps=3)
-        pg.keyboard.press("r")
-        time.sleep(0.1)
         pg.mouse.move(r["x"] + (rot["x"] + 0.5) * cs, r["y"] + (rot["y"] + 0.5) * cs, steps=8)
         pg.mouse.up()
         time.sleep(0.3)
         wh = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{rot['idx']}]; return [e.w, e.h]; }}")
-        check("拖动中按R横竖切换", wh == [rot["h"], rot["w"]], f"{[rot['w'], rot['h']]} → {wh}")
+        check("拖到放不下当前朝向自动横竖", wh == [rot["h"], rot["w"]], f"{[rot['w'], rot['h']]} → {wh}")
     else:
-        print("- 跳过旋转拖拽（包内没有非方形物品）")
+        print("- 跳过自动横竖（包内没有非方形物品或无可旋转落点）")
 
     # 悬停包内物品按 F → 放回容器
     staged_before = pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length")
@@ -159,14 +158,24 @@ with sync_playwright() as p:
     staged_after = pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length")
     check("悬停按 F 移出（放回容器）", staged_after == staged_before + 1, f"staged {staged_before}→{staged_after}")
 
-    # 拖包内物品到空白处 → 丢弃
+    # 拖到「面板内空白」（如 rp-msg 文字区）→ 不丢弃
+    safe_before = pg.evaluate("() => window.DFR_UI._raid.run.bagSafe.items.length")
+    main_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length")
+    which_sel = "#rpBagSafe .bag-item" if safe_before else "#rpBagMain .bag-item"
+    mb = pg.locator("#rpMsg").bounding_box()
+    ib = pg.locator(which_sel).first.bounding_box()
+    drag(pg, ib, (mb["x"] + mb["width"] / 2, mb["y"] + mb["height"] / 2))
+    tot = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+    check("面板内空白不丢弃", tot == safe_before + main_before, f"{tot}")
+
+    # 拖出整个面板外 → 丢弃
     safe_before = pg.evaluate("() => window.DFR_UI._raid.run.bagSafe.items.length")
     main_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length")
     which_sel = "#rpBagSafe .bag-item" if safe_before else "#rpBagMain .bag-item"
     ib = pg.locator(which_sel).first.bounding_box()
-    drag(pg, ib, (60, 500))  # 浮层面板外的空白背景
+    drag(pg, ib, (30, 300))  # 浮层面板外的背景区
     tot_after = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-    check("拖到空白处丢弃", tot_after == safe_before + main_before - 1, f"{safe_before + main_before}→{tot_after}")
+    check("拖出面板外丢弃", tot_after == safe_before + main_before - 1, f"{safe_before + main_before}→{tot_after}")
 
     # 关闭浮层 → 再开：已摸物品直接可见、不重新鉴定
     pg.click("#rpClose")

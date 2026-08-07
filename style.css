@@ -481,11 +481,11 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 
 /* 搜索浮层：容器 + 背包并排 */
 .rp-body { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
-.rp-left { flex: 1 1 320px; min-width: 0; }
-.rp-bags { flex: 0 1 auto; }
+.rp-left { flex: 1 1 240px; min-width: 0; }
+.rp-bags { flex: 0 0 auto; }
 .rp-bags .raid-bag { margin-bottom: 12px; }
 .rp-bags .raid-bag h3 { font-size: 13px; }
-.rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px 0 0; }
+.rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px auto 0; max-width: calc(var(--bagcell) * 6 + 4px); }
 
 /* 拖拽（幽灵跟随 + 落点高亮） */
 .bag-item, .rp-stage-item { touch-action: none; user-select: none; -webkit-user-select: none; }

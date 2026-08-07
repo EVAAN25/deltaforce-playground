@@ -437,9 +437,6 @@
       } else if (k === "f") {
         e.preventDefault();
         if (!hoverAct()) interact(); // 光标在物品上时 F = 放入/移出，否则 = 场景交互
-      } else if (k === "r" && Drag.cur) {
-        e.preventDefault();
-        rotateDrag(); // 拖动中按 R：横竖切换
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -554,7 +551,7 @@
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
-    const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（按R旋转）· 拖到空白丢弃" : "双击/按F 丢弃 · 拖拽挪位（按R旋转）";
+    const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（贴边自动横竖）· 拖出面板丢弃" : "双击/按F 丢弃 · 拖拽挪位（贴边自动横竖）";
     return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
@@ -721,17 +718,14 @@
     return true;
   }
 
-  // 拖动中按 R：横竖切换（仅包内物品；幽灵同步换形状）
-  function rotateDrag() {
-    const d = Drag.cur;
-    if (!d || d.payload.kind !== "bag") return;
-    d.rot = !d.rot;
+  // 拖动中横竖切换：幽灵同步换形（自动触发，见 dragTargetAt）
+  function setDragRot(d, rot) {
+    if (d.rot === rot) return;
+    d.rot = rot;
     const w = d.ghost.style.width;
     d.ghost.style.width = d.ghost.style.height;
     d.ghost.style.height = w;
-    d.ghost.classList.toggle("rot", d.rot);
-    Sfx.pickup();
-    dragMove({ clientX: d.x, clientY: d.y });
+    d.ghost.classList.toggle("rot", rot);
   }
 
   function dragTargetAt(payload, x, y) {
@@ -741,12 +735,16 @@
     if (grid) {
       const which = (grid.id === "rpBagSafe" || grid.id === "raidBagSafe") ? "bagSafe" : "bagMain";
       const item = dragItem(payload);
-      if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位（可 R 旋转）
+      if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位
         const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
         const r = grid.getBoundingClientRect();
         const cx = Math.floor((x - r.left) / cs), cy = Math.floor((y - r.top) / cs);
-        const rot = Drag.cur ? Drag.cur.rot : false;
-        return { type: "repos", which, el: grid, cx, cy, ok: DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, rot) };
+        // 自动横竖：当前朝向放不下、换个朝向能放，就自动转过去（两者皆可时保持原朝向）
+        const cur = Drag.cur ? Drag.cur.rot : false;
+        let rot = cur, ok = DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, cur);
+        if (!ok && DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
+        if (Drag.cur) setDragRot(Drag.cur, rot);
+        return { type: "repos", which, el: grid, cx, cy, rot, ok };
       }
       return { type: "bag", which, el: grid, ok: !!item && fitsBagSmart(Raid.run[which], item) };
     }
@@ -782,13 +780,13 @@
     d.srcEl.classList.remove("drag-src");
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
     if (t && t.el) t.el.classList.remove("drop-ok", "drop-bad");
-    if (!t) { // 落在空白处：包内物品 = 丢弃；容器里的货 = 不动
-      if (d.payload.kind === "bag") discard(d.payload.which, d.payload.idx);
+    if (!t) { // 空白落点：仅「拖出整个面板外」才丢弃包内物品；面板内空白 = 不动
+      if (d.payload.kind === "bag" && dropOutsidePanel(e)) discard(d.payload.which, d.payload.idx);
       return;
     }
     if (!t.ok) return;
-    if (t.type === "repos") { // 同包挪位（带 R 旋转态）
-      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy, d.rot)) { Sfx.pickup(); renderBags(); }
+    if (t.type === "repos") { // 同包挪位（含自动横竖）
+      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy, t.rot)) { Sfx.pickup(); renderBags(); }
       return;
     }
     if (t.type === "bag") {
@@ -798,6 +796,14 @@
     } else if (t.type === "container") {
       returnToContainer(d.payload.which, d.payload.idx);
     }
+  }
+
+  // 丢弃判定：浮层开着时须拖出整个面板外才算空白；主页上拖到背包外即算
+  function dropOutsidePanel(e) {
+    const ov = Raid.overlay;
+    if (!ov || ov.cancelled) return true;
+    const r = $("#raidPanel").getBoundingClientRect();
+    return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
   }
 
   // ---------- 搜索浮层（官方形态：剪影全见 → 逐件点击鉴定；摸过的容器可反复翻） ----------
