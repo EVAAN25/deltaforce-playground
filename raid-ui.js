@@ -570,7 +570,7 @@
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
-    const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（贴边自动横竖）· 拖出面板丢弃" : "双击/按F 丢弃 · 拖拽挪位（贴边自动横竖）";
+    const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（贴边自动横竖）· 拖出面板丢弃" : "拖拽挪位（贴边自动横竖）· 拖出去丢弃";
     return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
@@ -579,10 +579,9 @@
     </div>`;
   }
 
-  // 双击包内物品：浮层开着 = 放回当前容器；否则 = 丢弃
+  // 双击包内物品：只在搜索浮层里 = 放回当前容器；丢弃没有快捷方式，只能拖出面板
   function onBagDbl(which, idx) {
     if (Raid.overlay && !Raid.overlay.cancelled) returnToContainer(which, idx);
-    else discard(which, idx);
   }
 
   function discard(which, idx) {
@@ -615,8 +614,8 @@
       return true;
     }
     if (h.kind === "bag") {
-      if (ov && !ov.cancelled) returnToContainer(h.which, h.idx);
-      else discard(h.which, h.idx);
+      if (ov && !ov.cancelled) returnToContainer(h.which, h.idx); // 搜索中按 F = 放回容器
+      // 丢弃没有快捷键，只能拖出面板——其余情况按 F 不动
       return true;
     }
     return false;
