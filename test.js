@@ -542,6 +542,58 @@ ok("鼠鼠摸金：first-fit 装箱正确性（含旋转与放不下失败）", 
   assert.strictEqual(occCount, bag.items.reduce((s, e) => s + e.w * e.h, 0));
 });
 
+ok("鼠鼠摸金：智能入包（first-fit 失败时自动整理背包）", () => {
+  const cell = (id) => ({ id, name: "单格" + id, grade: 1, len: 1, wid: 1, cells: 1, value: 100, perCell: 100 });
+  const h2 = { id: 10, name: "横条", grade: 2, len: 2, wid: 1, cells: 2, value: 200, perCell: 100 };
+  const v2 = { id: 11, name: "竖条", grade: 2, len: 1, wid: 2, cells: 2, value: 200, perCell: 100 };
+  // 4×2 包摆满后挖掉两个对角格：空格互不相邻，first-fit（含旋转）放不下任何 2 格件
+  const bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, Object.assign({}, h2, { id: 20 })); // (0,0)-(1,0)
+  DFR.addToBag(bag, cell(21));                          // (2,0)
+  DFR.addToBag(bag, cell(22));                          // (3,0)
+  DFR.addToBag(bag, Object.assign({}, h2, { id: 23 })); // (0,1)-(1,1)
+  DFR.addToBag(bag, cell(24));                          // (2,1)
+  DFR.addToBag(bag, cell(25));                          // (3,1)
+  DFR.removeFromBag(bag, 1); // 挖掉 (2,0)
+  DFR.removeFromBag(bag, 4); // 挖掉 (3,1) → 空格 (2,0) 与 (3,1) 对角不相邻
+  assert(!DFR.addToBag(bag, Object.assign({}, v2)), "前提：对角空格 first-fit 放不下竖条");
+  const r = DFR.addToBagSmart(bag, Object.assign({}, v2));
+  assert.strictEqual(r, 2, "整理后应能放入");
+  assert.strictEqual(bag.items.length, 5, "5 件全在包里");
+  // 重排后占用表与物品一致、无重叠
+  const occ = DFR.makeGrid(4, 2, 0);
+  for (const e of bag.items) for (let dy = 0; dy < e.h; dy++) for (let dx = 0; dx < e.w; dx++) {
+    assert(!occ[e.y + dy][e.x + dx], "重排后重叠");
+    occ[e.y + dy][e.x + dx] = 1;
+  }
+  assert.strictEqual(occ.flat().filter(Boolean).length, 8, "4×2 应占满");
+  // 真放不下时不动包
+  const full = DFR.makeBag(2, 2);
+  DFR.addToBag(full, Object.assign({}, h2, { id: 30 }));
+  DFR.addToBag(full, Object.assign({}, h2, { id: 31 }));
+  assert.strictEqual(DFR.addToBagSmart(full, cell(32)), 0, "总面积超了整理也放不下");
+  assert.strictEqual(full.items.length, 2, "失败后原包不变");
+});
+
+ok("鼠鼠摸金：包内指定格挪位（canPlaceAt / placeAt）", () => {
+  const cell = { id: 1, name: "单格", grade: 1, len: 1, wid: 1, cells: 1, value: 100, perCell: 100 };
+  const h2 = { id: 2, name: "横条", grade: 2, len: 2, wid: 1, cells: 2, value: 200, perCell: 100 };
+  const bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, h2);   // idx0 (0,0)-(1,0)
+  DFR.addToBag(bag, cell); // idx1 (2,0)
+  assert(DFR.canPlaceAt(bag, 0, 1, 0) === false, "挪到别人头上不行");
+  assert(DFR.canPlaceAt(bag, 0, 0, 1), "挪到空行可以");
+  assert(DFR.canPlaceAt(bag, 0, 3, 0) === false, "出界不行");
+  assert(DFR.canPlaceAt(bag, 0, 0, 0), "原位可以");
+  assert(DFR.placeAt(bag, 0, 2, 1), "挪到 (2,1)");
+  assert.strictEqual(bag.items[0].x, 2);
+  assert.strictEqual(bag.items[0].y, 1);
+  assert(!bag.occ[0][0] && bag.occ[1][2] && bag.occ[1][3], "占用表同步");
+  assert(!DFR.placeAt(bag, 1, 2, 1), "挪到被占格失败");
+  assert.strictEqual(bag.items[1].x, 2, "失败后位置不变");
+  assert.strictEqual(bag.items[1].y, 0);
+});
+
 ok("鼠鼠摸金：未定价物品（value=null）不进掉落池、结算无 NaN", () => {
   // 数据里存在未定价物品（火箭燃料等，2026-08-06 起价值切数据帝真实物价）
   assert(DF_LOOT.items.some((i) => i.value === null), "前提：存在未定价物品");

@@ -174,7 +174,7 @@
   }
 
   // ---------- 状态 ----------
-  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, tickTimer: null, rafId: 0 };
+  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, keys: {}, hover: null, tickTimer: null, rafId: 0 };
 
   function newRun(mode) {
     let seed, cfg, level = null, practiceName = null;
@@ -254,15 +254,14 @@
     ctx.font = "bold 12px sans-serif";
     for (const c of run.containers) {
       const cx = c.x * TS, cy = c.y * TS;
-      if (c.searched) {
-        const left = containerLeftover(c);
-        ctx.fillStyle = "#2a2f3a";
+      if (c.searched) { // 摸过的容器：名称不变，整体变暗
+        ctx.fillStyle = "#23272f";
         ctx.fillRect(cx + 2, cy + 2, TS - 4, TS - 4);
-        ctx.strokeStyle = left ? "#8a7440" : "#3a4150";
+        ctx.strokeStyle = "#3a4150";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(cx + 2.5, cy + 2.5, TS - 5, TS - 5);
-        ctx.fillStyle = left ? "#c9a35a" : "#5a6272";
-        ctx.fillText(left ? "余" : "✓", cx + TS / 2, cy + TS / 2 + 1);
+        ctx.fillStyle = "#5a6272";
+        ctx.fillText(c.name[0], cx + TS / 2, cy + TS / 2 + 1);
       } else {
         const col = TIER_COLOR[c.tier];
         ctx.fillStyle = col + "33";
@@ -437,7 +436,7 @@
         e.preventDefault();
       } else if (k === "f") {
         e.preventDefault();
-        interact();
+        if (!hoverAct()) interact(); // 光标在物品上时 F = 放入/移出，否则 = 场景交互
       }
     });
     window.addEventListener("keyup", (e) => {
@@ -521,11 +520,17 @@
     return !!DFR.packFirstFit(occ, bag.w, bag.h, item.len, item.wid, true);
   }
 
+  function fitsBagSmart(bag, item) { // 不改变 bag 的智能试装（含自动整理重排）
+    const clone = { w: bag.w, h: bag.h, occ: bag.occ.map((r) => r.slice()), items: bag.items.slice() };
+    return DFR.addToBagSmart(clone, item) !== 0;
+  }
+
   // 背包渲染：主页两个 + 搜索浮层里两个（同一数据，四处同步）
   const BAG_GRIDS = { bagMain: ["#raidBagMain", "#rpBagMain"], bagSafe: ["#raidBagSafe", "#rpBagSafe"] };
   function renderBags() {
     const run = Raid.run;
     if (!run) return;
+    Raid.hover = null; // 重渲染后旧下标失效，悬停重来
     const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
     for (const which of ["bagMain", "bagSafe"]) {
       for (const sel of BAG_GRIDS[which]) {
@@ -535,13 +540,18 @@
         el.querySelectorAll(".bag-item").forEach((itemEl, i) => {
           itemEl.addEventListener("dblclick", () => onBagDbl(which, i));
           bindDrag(itemEl, { kind: "bag", which, idx: i });
+          itemEl.addEventListener("pointerenter", () => { Raid.hover = { kind: "bag", which, idx: i }; });
+          itemEl.addEventListener("pointerleave", () => {
+            const h = Raid.hover;
+            if (h && h.kind === "bag" && h.which === which && h.idx === i) Raid.hover = null;
+          });
         });
       }
     }
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
-    const hint = Raid.overlay ? "双击放回容器 · 可拖拽" : "双击丢弃 · 可拖拽";
+    const hint = Raid.overlay ? "双击/按F 放回容器 · 可拖拽挪位 · 拖到空白丢弃" : "双击/按F 丢弃 · 可拖拽";
     return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
@@ -568,18 +578,44 @@
     updateHUD();
   }
 
+  // 悬停按 F：待拾取/容器格子 = 入包；包内 = 放回容器（无浮层 = 丢弃）。处理了返回 true
+  function hoverAct() {
+    const h = Raid.hover;
+    const run = Raid.run;
+    if (!h || !run || run.status !== "playing") return false;
+    const ov = Raid.overlay;
+    if (h.kind === "stage") {
+      if (!ov || ov.cancelled) return false;
+      autoTake(ov, h.i);
+      return true;
+    }
+    if (h.kind === "grid") {
+      if (!ov || ov.cancelled) return false;
+      const si = stagedDrops(ov.c).indexOf(ov.c.drops[h.i]);
+      if (si < 0) return false;
+      autoTake(ov, si);
+      return true;
+    }
+    if (h.kind === "bag") {
+      if (ov && !ov.cancelled) returnToContainer(h.which, h.idx);
+      else discard(h.which, h.idx);
+      return true;
+    }
+    return false;
+  }
+
   // 包 ↔ 包 挪动（拖拽落点在另一个背包上）
   function moveBag(fromWhich, idx, toWhich) {
     const run = Raid.run;
     if (!run || run.status !== "playing") return;
     const entry = run[fromWhich].items[idx];
     if (!entry) return;
-    if (!fitsBag(run[toWhich], entry.item)) {
+    if (!fitsBagSmart(run[toWhich], entry.item)) {
       DF_APP.toast(toWhich === "bagSafe" ? "安全箱塞不下这件" : "主背包塞不下这件");
       return;
     }
     DFR.removeFromBag(run[fromWhich], idx);
-    DFR.addToBag(run[toWhich], entry.item);
+    DFR.addToBagSmart(run[toWhich], entry.item);
     Sfx.pickup();
     DF_APP.toast(`「${entry.item.name}」挪到${toWhich === "bagSafe" ? "安全箱" : "主背包"}`);
     renderBags();
@@ -666,9 +702,14 @@
     const grid = el.closest(".bag-grid");
     if (grid) {
       const which = (grid.id === "rpBagSafe" || grid.id === "raidBagSafe") ? "bagSafe" : "bagMain";
-      if (payload.kind === "bag" && payload.which === which) return null;
       const item = dragItem(payload);
-      return { type: "bag", which, el: grid, ok: !!item && fitsBag(Raid.run[which], item) };
+      if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位
+        const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
+        const r = grid.getBoundingClientRect();
+        const cx = Math.floor((x - r.left) / cs), cy = Math.floor((y - r.top) / cs);
+        return { type: "repos", which, el: grid, cx, cy, ok: DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy) };
+      }
+      return { type: "bag", which, el: grid, ok: !!item && fitsBagSmart(Raid.run[which], item) };
     }
     // 包内物品拖回容器（仅搜索浮层开着时）
     if (payload.kind === "bag" && Raid.overlay && !Raid.overlay.cancelled) {
@@ -701,7 +742,15 @@
     const t = dragTargetAt(d.payload, e.clientX, e.clientY);
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
     if (t && t.el) t.el.classList.remove("drop-ok", "drop-bad");
-    if (!t || !t.ok) return;
+    if (!t) { // 落在空白处：包内物品 = 丢弃；容器里的货 = 不动
+      if (d.payload.kind === "bag") discard(d.payload.which, d.payload.idx);
+      return;
+    }
+    if (!t.ok) return;
+    if (t.type === "repos") { // 同包挪位
+      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy)) { Sfx.pickup(); renderBags(); }
+      return;
+    }
     if (t.type === "bag") {
       const act = t.which === "bagSafe" ? "safe" : "main";
       if (d.payload.kind === "stage") takeItem(Raid.overlay, d.payload.i, act);
@@ -771,6 +820,15 @@
     grid.innerHTML = html;
     grid.querySelectorAll(".rp-silhouette").forEach((el) =>
       el.addEventListener("click", () => searchItem(ov, Number(el.dataset.i))));
+    // 已揭晓未拿走的格子：悬停按 F 直接入包
+    grid.querySelectorAll(".rp-item.revealed:not(.taken)").forEach((el) => {
+      const i = Number(el.dataset.i);
+      el.addEventListener("pointerenter", () => { Raid.hover = { kind: "grid", i }; });
+      el.addEventListener("pointerleave", () => {
+        const h = Raid.hover;
+        if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
+      });
+    });
   }
 
   // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
@@ -838,17 +896,18 @@
     checkAllRevealed(ov);
   }
 
-  // 待拾取区：已鉴定未拿走的货（双击 / 拖拽入包，按钮兜底）
+  // 待拾取区：已鉴定未拿走的货（双击 / 悬停按F / 拖拽入包，按钮兜底）
   function renderStaging(ov) {
     const run = Raid.run;
+    Raid.hover = null; // 重渲染后旧下标失效，悬停重来
     const staged = stagedDrops(ov.c);
     ov.value = ov.c.drops.filter((d) => d.revealed).reduce((s, d) => s + d.item.value, 0);
     $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
     $("#rpStaging").innerHTML = staged.map((d, i) => {
       const it = d.item;
-      const canMain = fitsBag(run.bagMain, it);
-      const canSafe = fitsBag(run.bagSafe, it);
-      return `<div class="rp-stage-item g${it.grade}" title="双击放入背包 · 可拖拽">
+      const canMain = fitsBagSmart(run.bagMain, it);
+      const canSafe = fitsBagSmart(run.bagSafe, it);
+      return `<div class="rp-stage-item g${it.grade}" title="双击/按F 放入背包 · 可拖拽">
         ${itemImgHTML(it)}
         <span><span class="si-name">${it.name}</span><span class="si-meta">${GRADE_NAME[it.grade]} · ${it.len}×${it.wid} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】</span></span>
         <span class="si-btns">
@@ -866,6 +925,11 @@
         if (e.target.closest("button")) return; // 按钮不触发拖拽
         dragPress({ kind: "stage", i }, el, e);
       });
+      el.addEventListener("pointerenter", () => { Raid.hover = { kind: "stage", i }; });
+      el.addEventListener("pointerleave", () => {
+        const h = Raid.hover;
+        if (h && h.kind === "stage" && h.i === i) Raid.hover = null;
+      });
     });
     $("#rpStaging").querySelectorAll("button").forEach((b) =>
       b.addEventListener("click", () => takeItem(ov, Number(b.dataset.i), b.dataset.act)));
@@ -876,7 +940,8 @@
     const d = stagedDrops(ov.c)[i];
     if (!d) return;
     const bag = act === "safe" ? run.bagSafe : run.bagMain;
-    if (!DFR.addToBag(bag, d.item)) {
+    const res = DFR.addToBagSmart(bag, d.item);
+    if (!res) {
       DF_APP.toast(act === "safe" ? "安全箱塞不下这件" : "背包塞不下了，丢点别的或留下它");
       return;
     }
@@ -885,19 +950,21 @@
     const gel = $("#rpGrid").querySelector(`.rp-item[data-i="${gi}"]`);
     if (gel) gel.classList.add("taken");
     Sfx.pickup();
-    DF_APP.toast(act === "safe" ? `「${d.item.name}」进安全箱，稳了` : `「${d.item.name}」入包`);
+    DF_APP.toast(res === 2
+      ? `背包自动整理后塞下了「${d.item.name}」`
+      : act === "safe" ? `「${d.item.name}」进安全箱，稳了` : `「${d.item.name}」入包`);
     renderStaging(ov);
     renderBags();
     updateHUD();
   }
 
-  // 双击入包：主背包优先，塞不下试安全箱
+  // 双击入包：主背包优先，塞不下试安全箱（都走智能整理）
   function autoTake(ov, i) {
     const run = Raid.run;
     const d = stagedDrops(ov.c)[i];
     if (!d) return;
-    if (fitsBag(run.bagMain, d.item)) takeItem(ov, i, "main");
-    else if (fitsBag(run.bagSafe, d.item)) takeItem(ov, i, "safe");
+    if (fitsBagSmart(run.bagMain, d.item)) takeItem(ov, i, "main");
+    else if (fitsBagSmart(run.bagSafe, d.item)) takeItem(ov, i, "safe");
     else DF_APP.toast("背包和安全箱都塞不下了，先腾点地方");
   }
 

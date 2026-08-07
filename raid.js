@@ -386,6 +386,54 @@
 
   function bagValue(bag) { return bag.items.reduce((s, it) => s + it.item.value, 0); }
 
+  /*
+   * 智能入包：先 first-fit 直放；放不下则把全包物品连新件一起重排（大件优先，两种排序各试一次），
+   * 重排成功则应用新布局。返回 0=放不下 / 1=直接放入 / 2=整理后放入。
+   */
+  function addToBagSmart(bag, item) {
+    if (addToBag(bag, item)) return 1;
+    const all = bag.items.map((e) => e.item).concat([item]);
+    const orders = [
+      (a, b) => b.len * b.wid - a.len * a.wid,                       // 面积大的先放
+      (a, b) => Math.max(b.len, b.wid) - Math.max(a.len, a.wid),     // 最长边大的先放
+    ];
+    for (const ord of orders) {
+      const sorted = all.slice().sort(ord);
+      const occ = makeGrid(bag.w, bag.h, 0);
+      const placed = [];
+      let ok = true;
+      for (const it of sorted) {
+        const pos = packFirstFit(occ, bag.w, bag.h, it.len, it.wid, true);
+        if (!pos) { ok = false; break; }
+        placed.push({ item: it, x: pos.x, y: pos.y, w: pos.w, h: pos.h });
+      }
+      if (ok) { bag.occ = occ; bag.items = placed; return 2; }
+    }
+    return 0;
+  }
+
+  // 能否把包内第 idx 件挪到以 (x,y) 为左上角的格子（不改变 bag；自身原位视为空）
+  function canPlaceAt(bag, idx, x, y) {
+    const it = bag.items[idx];
+    if (!it || x < 0 || y < 0 || x + it.w > bag.w || y + it.h > bag.h) return false;
+    for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) {
+      const cx = x + dx, cy = y + dy;
+      const self = cx >= it.x && cx < it.x + it.w && cy >= it.y && cy < it.y + it.h;
+      if (!self && bag.occ[cy][cx]) return false;
+    }
+    return true;
+  }
+
+  // 把包内第 idx 件挪到 (x,y)；成功返回 true，失败不动包
+  function placeAt(bag, idx, x, y) {
+    if (!canPlaceAt(bag, idx, x, y)) return false;
+    const it = bag.items[idx];
+    for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) bag.occ[it.y + dy][it.x + dx] = 0;
+    for (let dy = 0; dy < it.h; dy++) for (let dx = 0; dx < it.w; dx++) bag.occ[y + dy][x + dx] = 1;
+    it.x = x; it.y = y;
+    return true;
+  }
+
   // ---------- 分享卡 ----------
 
   function buildRaidShare(opts) {
@@ -416,7 +464,7 @@
     makeGrid, bfsReachable, findPath, losClear,
     tryGenMap, validateMap, generateRaid, makeSolidFn,
     fitsPossible, weightedGrade, packFirstFit, rollContainer,
-    makeBag, addToBag, removeFromBag, bagValue,
+    makeBag, addToBag, addToBagSmart, removeFromBag, canPlaceAt, placeAt, bagValue,
     buildRaidShare,
   };
 });
