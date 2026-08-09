@@ -150,7 +150,22 @@
       const t = c.currentTime;
       blip(440, t, 0.16, "sine", 0.15); blip(349.2, t + 0.18, 0.16, "sine", 0.14); blip(261.6, t + 0.36, 0.45, "sine", 0.13);
     }
-    return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost };
+    // 撤离结算 BGM（鼠鼠梗曲《寂寞的人伤心的歌》，按评级分档）
+    let bgm = null;
+    function bgmStop() {
+      if (!bgm) return;
+      try { bgm.pause(); } catch (e) { /* 已停 */ }
+      bgm = null;
+    }
+    function bgmPlay(src) {
+      bgmStop();
+      const a = new Audio(src);
+      a.volume = 0.75;
+      const p = a.play();
+      if (p && p.catch) p.catch(() => {});
+      bgm = a;
+    }
+    return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost, bgmPlay, bgmStop };
   })();
 
   // ---------- 撤离撒花（纯 DOM，无外部库） ----------
@@ -1125,6 +1140,47 @@
     detect();
   }
 
+  // ---------- 撤离庆祝卡（按评级三档：表情包 + 分档 BGM + 引导） ----------
+  const CELEB_TIERS = [
+    { img: "assets/meme/full.jpg", text: "鼠鼠吃成球了！！！", bgm: "assets/sfx/extract-fat.mp3" },  // SS/S 吃撑
+    { img: "assets/meme/ok.jpg", text: "鼠鼠来啰，小有收获～", bgm: "assets/sfx/extract-ok.mp3" },   // A/B 还行
+    { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: null },                        // C 白跑（合成短音）
+  ];
+  let celebTimer = 0;
+
+  function celebTierOf(gradeG) { return (gradeG === "SS" || gradeG === "S") ? 0 : (gradeG === "A" || gradeG === "B") ? 1 : 2; }
+
+  function showCelebration(run, grade, value) {
+    const t = CELEB_TIERS[celebTierOf(grade.g)];
+    $("#celebImg").src = t.img;
+    const g = $("#celebGrade");
+    g.textContent = `${grade.g} · ${grade.name}`;
+    g.className = "celeb-grade" + (grade.g === "C" ? " gC" : "");
+    $("#celebText").textContent = `${t.text} —— 带出【${DFR.fmt(value)}】`;
+    const hasNext = run.mode === "levels" && run.level < DFR.LEVELS.length - 1;
+    const btns = [];
+    if (run.mode === "daily") btns.push(`<button class="btn" id="celebGoLevels">去闯关 · 关卡模式 →</button>`);
+    if (hasNext) btns.push(`<button class="btn" id="celebNext">下一关：${DFR.LEVELS[run.level + 1].name} →</button>`);
+    btns.push(`<button class="btn ghost" id="celebOk">收下喜悦</button>`);
+    $("#celebBtns").innerHTML = btns.join("");
+    $("#celebOk").onclick = hideCelebration;
+    if (run.mode === "daily") $("#celebGoLevels").onclick = () => { hideCelebration(); setMode("levels"); };
+    if (hasNext) $("#celebNext").onclick = () => {
+      hideCelebration();
+      Raid.level++;
+      Raid.run = null;
+      render();
+    };
+    $("#raidCeleb").classList.remove("hidden");
+    clearTimeout(celebTimer);
+    celebTimer = setTimeout(hideCelebration, 15000); // 15s 没点自己收
+  }
+
+  function hideCelebration() {
+    clearTimeout(celebTimer);
+    $("#raidCeleb").classList.add("hidden");
+  }
+
   // ---------- 结算 / 元游戏 ----------
   function finish(outcome) {
     const run = Raid.run;
@@ -1132,6 +1188,8 @@
     run.status = outcome;
     run.outcome = outcome;
     run.extracting = 0;
+    Sfx.bgmStop();
+    hideCelebration();
     updateExtractBar();
     if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); Sfx.rustleStop(); }
     closeBag();
@@ -1146,8 +1204,11 @@
     // 结局音效与画面反馈
     if (outcome === "extracted") {
       const g = DFR.raidGrade(value).g;
-      Sfx.fanfare(g);      // 放歌：按评级三档情绪
+      const tier = celebTierOf(g);
+      if (CELEB_TIERS[tier].bgm) Sfx.bgmPlay(CELEB_TIERS[tier].bgm); // 吃肥放鼠鼠梗曲
+      else Sfx.fanfare(g); // 白跑：平淡合成短音
       confettiBurst(g);    // 撒花：评级越高越多
+      showCelebration(run, DFR.raidGrade(value), value);
     } else if (outcome === "caught") {
       Sfx.sting();
       const st = document.querySelector(".raid-stage");
@@ -1218,11 +1279,13 @@
       mapName: run.mode === "levels" ? DFR.LEVELS[run.level].name : null,
     }));
     $("#raidAgainBtn").onclick = () => {
+      Sfx.bgmStop();
       Raid.run = newRun(Raid.mode);
       renderAll();
     };
     if (guideLevels) $("#raidGoLevelsBtn").onclick = () => setMode("levels");
     if (hasNext) $("#raidNextBtn").onclick = () => {
+      Sfx.bgmStop();
       Raid.level++;
       Raid.run = null;
       render();
@@ -1298,6 +1361,8 @@
   function setMode(mode) {
     Raid.mode = mode;
     Raid.run = null;
+    Sfx.bgmStop();
+    hideCelebration();
     // 同步 tab 高亮（app.js 的 syncModeTabs 也可调用，这里自理）
     document.querySelectorAll('.mode-tabs[data-game="raid"] .mode-tab').forEach((b) =>
       b.classList.toggle("active", b.dataset.mode === mode));
@@ -1306,7 +1371,7 @@
 
   function onRoute(view) {
     Raid.active = view === "raid";
-    if (!Raid.active) loopStop();
+    if (!Raid.active) { loopStop(); Sfx.bgmStop(); hideCelebration(); }
   }
 
   window.DFR_UI = { render, setMode, onRoute, getMode: () => Raid.mode, _raid: Raid }; // _raid 供自动化自测
@@ -1376,5 +1441,6 @@
   $("#rpClose").addEventListener("click", closeSearch);
   $("#bagOverlay").addEventListener("click", (e) => { if (e.target.id === "bagOverlay") closeBag(); }); // 点背板关闭
   $("#bagOvClose").addEventListener("click", closeBag);
+  $("#raidCeleb").addEventListener("click", (e) => { if (e.target.id === "raidCeleb") hideCelebration(); }); // 点背板收卡
   if (location.hash === "#/raid") { Raid.active = true; render(); }
 })();
