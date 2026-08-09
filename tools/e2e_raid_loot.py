@@ -152,34 +152,30 @@ with sync_playwright() as p:
         now = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{repo['idx']}]; return [e.x, e.y]; }}")
         check("同包拖拽挪位", now == [repo["x"], repo["y"]], f"{repo['from']} → {now}")
 
-    # 自动横竖：把非方形物品拖到「当前朝向放不下、换朝向能放」的格子
-    rot = pg.evaluate("""() => {
-      const Raid = window.DFR_UI._raid, DFR = window.DFR;
+    # 自动横竖（确定性场景）：A=2×1 拖到被 B 占据的右边界，横向被挡 → 自动竖放
+    pg.evaluate("""() => {
+      const Raid = window.DFR_UI._raid, DFR = window.DFR, L = window.DF_LOOT;
+      Raid.run.bagMain = DFR.makeBag(6, 4);
+      const a = L.items.find(i => i.len === 2 && i.wid === 1 && i.value != null);
+      const b = L.items.find(i => i.len === 2 && i.wid === 1 && i.value != null && i.id !== a.id);
+      DFR.addToBag(Raid.run.bagMain, a); // (0,0)-(1,0)
       const bag = Raid.run.bagMain;
-      for (let idx = 0; idx < bag.items.length; idx++) {
-        const it = bag.items[idx];
-        if (it.w === it.h) continue;
-        for (let y = 0; y < bag.h; y++) for (let x = 0; x < bag.w; x++) {
-          if (!DFR.canPlaceAt(bag, idx, x, y, false) && DFR.canPlaceAt(bag, idx, x, y, true))
-            return { idx, x, y, w: it.w, h: it.h };
-        }
-      }
-      return null;
+      bag.items.push({ item: b, x: 4, y: 0, w: 2, h: 1 }); // B 堵右边界 (4,0)-(5,0)
+      bag.occ[0][4] = 1; bag.occ[0][5] = 1;
+      window.DFR_UI.render();
     }""")
-    if rot:
-        cs = pg.evaluate("() => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bagcell'), 10) || 44")
-        r = pg.locator("#rpBagMain").bounding_box()
-        ib = pg.locator("#rpBagMain .bag-item").nth(rot["idx"]).bounding_box()
-        pg.mouse.move(ib["x"] + ib["width"] / 2, ib["y"] + ib["height"] / 2)
-        pg.mouse.down()
-        pg.mouse.move(ib["x"] + ib["width"] / 2 + 30, ib["y"] + ib["height"] / 2 + 30, steps=3)
-        pg.mouse.move(r["x"] + (rot["x"] + 0.5) * cs, r["y"] + (rot["y"] + 0.5) * cs, steps=8)
-        pg.mouse.up()
-        time.sleep(0.3)
-        wh = pg.evaluate(f"() => {{ const e = window.DFR_UI._raid.run.bagMain.items[{rot['idx']}]; return [e.w, e.h]; }}")
-        check("拖到放不下当前朝向自动横竖", wh == [rot["h"], rot["w"]], f"{[rot['w'], rot['h']]} → {wh}")
-    else:
-        print("- 跳过自动横竖（包内没有非方形物品或无可旋转落点）")
+    time.sleep(0.3)
+    cs = pg.evaluate("() => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--bagcell'), 10) || 44")
+    r = pg.locator("#rpBagMain").bounding_box()
+    ib = pg.locator("#rpBagMain .bag-item").nth(0).bounding_box()
+    pg.mouse.move(ib["x"] + ib["width"] / 2, ib["y"] + ib["height"] / 2)
+    pg.mouse.down()
+    pg.mouse.move(ib["x"] + ib["width"] / 2 + 25, ib["y"] + ib["height"] / 2 + 12, steps=3)
+    pg.mouse.move(r["x"] + 5.5 * cs, r["y"] + 0.5 * cs, steps=8)
+    pg.mouse.up()
+    time.sleep(0.3)
+    wh = pg.evaluate("() => { const e = window.DFR_UI._raid.run.bagMain.items[0]; return [e.x, e.y, e.w, e.h]; }")
+    check("拖到横向被挡自动竖放", wh[2] == 1 and wh[3] == 2, f"{wh}")
 
     # 拖拽互换：A=2×1 拖到 B=1×1 头上 → 交换位置
     pg.evaluate("""() => {
@@ -244,16 +240,17 @@ with sync_playwright() as p:
     check("Tab 打开背包浮层", pg.is_visible("#bagOverlay"))
     ov_items = pg.evaluate("() => document.querySelectorAll('#bagOvMain .bag-item, #bagOvSafe .bag-item').length")
     check("背包浮层渲染物品", ov_items == tot_after, f"{ov_items}/{tot_after}")
-    # 背包浮层里双击 / 悬停按 F 都不丢弃（丢弃只能拖出去）
-    pg.dispatch_event("#bagOvMain .bag-item, #bagOvSafe .bag-item", "dblclick")
-    time.sleep(0.2)
-    bb = pg.locator("#bagOvMain .bag-item, #bagOvSafe .bag-item").first.bounding_box()
-    pg.mouse.move(bb["x"] + bb["width"] / 2, bb["y"] + bb["height"] / 2)
-    time.sleep(0.2)
-    pg.keyboard.press("f")
-    time.sleep(0.2)
-    tot2 = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-    check("背包浮层双击/按F 不丢弃", tot2 == tot_after, f"{tot2}/{tot_after}")
+    # 背包浮层里双击 / 悬停按 F 都不丢弃（丢弃只能拖出去；包空则跳过）
+    if tot_after > 0:
+        pg.dispatch_event("#bagOvMain .bag-item, #bagOvSafe .bag-item", "dblclick")
+        time.sleep(0.2)
+        bb = pg.locator("#bagOvMain .bag-item, #bagOvSafe .bag-item").first.bounding_box()
+        pg.mouse.move(bb["x"] + bb["width"] / 2, bb["y"] + bb["height"] / 2)
+        time.sleep(0.2)
+        pg.keyboard.press("f")
+        time.sleep(0.2)
+        tot2 = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+        check("背包浮层双击/按F 不丢弃", tot2 == tot_after, f"{tot2}/{tot_after}")
     pg.keyboard.press("Escape")
     time.sleep(0.3)
     check("ESC 关闭背包浮层", not pg.is_visible("#bagOverlay"))

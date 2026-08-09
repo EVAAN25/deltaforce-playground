@@ -504,7 +504,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .drag-ghost {
   position: fixed; z-index: 99; pointer-events: none; opacity: .88;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 6px; transform: translate(-50%, -50%) scale(1.05);
+  border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
 }
 .drag-ghost { z-index: 99 !important; } /* 压过 .rp-item.revealed 的 z-index:2，否则容器格幽灵垫在浮层下看不见 */

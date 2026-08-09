@@ -763,11 +763,14 @@
     if (e.button != null && e.button !== 0) return;
     if (Raid.run && Raid.run.status !== "playing") return;
     const sx = e.clientX, sy = e.clientY;
+    // 抓取点偏移必须在按下时取（过阈值后事件坐标已移动）
+    const sr = el.getBoundingClientRect();
+    const pressOff = { x: sx - sr.left, y: sy - sr.top };
     let started = false;
     const move = (ev) => {
       if (!started) {
         if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 8) return;
-        started = dragBegin(payload, el, ev);
+        started = dragBegin(payload, el, ev, pressOff);
         if (!started) { cleanup(); return; }
       }
       dragMove(ev);
@@ -799,7 +802,7 @@
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
   }
 
-  function dragBegin(payload, srcEl, e) {
+  function dragBegin(payload, srcEl, e, off) {
     if (!dragItem(payload)) return false;
     const ghost = srcEl.cloneNode(true);
     ghost.classList.add("drag-ghost");
@@ -807,7 +810,7 @@
     ghost.style.height = srcEl.offsetHeight + "px";
     document.body.appendChild(ghost);
     srcEl.classList.add("drag-src");
-    Drag.cur = { payload, ghost, srcEl, target: null, rot: false, x: e.clientX, y: e.clientY };
+    Drag.cur = { payload, ghost, srcEl, target: null, rot: false, off, x: e.clientX, y: e.clientY };
     dragMove(e);
     return true;
   }
@@ -832,14 +835,30 @@
       if (payload.kind === "bag" && payload.which === which) { // 同包：按落点格子挪位
         const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
         const r = grid.getBoundingClientRect();
-        const cx = Math.floor((x - r.left) / cs), cy = Math.floor((y - r.top) / cs);
         const bag = Raid.run[which];
+        const entry = bag.items[payload.idx];
+        if (!entry) return null;
+        // 按抓取点对齐并**夹进背包边界**（贴边自动吸到最边格，不会"挪不过去"）
+        const off = Drag.cur ? Drag.cur.off : { x: 0, y: 0 };
+        const cellAt = (w, h) => [
+          Math.max(0, Math.min(bag.w - w, Math.round((x - off.x - r.left) / cs))),
+          Math.max(0, Math.min(bag.h - h, Math.round((y - off.y - r.top) / cs))),
+        ];
+        const dims = (f) => f ? [entry.h, entry.w] : [entry.w, entry.h];
         const cur = Drag.cur ? Drag.cur.rot : false;
         // 优先级：当前朝向直接放 → 换朝向放（自动横竖）→ 空位都不行才互换（先当前朝向再换朝向）
-        let rot = cur, ok = DFR.canPlaceAt(bag, payload.idx, cx, cy, cur);
-        if (!ok && DFR.canPlaceAt(bag, payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
-        if (!ok && DFR.canPlaceOrSwap(bag, payload.idx, cx, cy, cur)) { rot = cur; ok = true; }
-        if (!ok && DFR.canPlaceOrSwap(bag, payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
+        let rot = cur, cx, cy, ok;
+        [cx, cy] = cellAt(...dims(cur));
+        ok = DFR.canPlaceAt(bag, payload.idx, cx, cy, cur);
+        if (!ok) {
+          const [cx2, cy2] = cellAt(...dims(!cur));
+          if (DFR.canPlaceAt(bag, payload.idx, cx2, cy2, !cur)) { rot = !cur; cx = cx2; cy = cy2; ok = true; }
+        }
+        if (!ok && DFR.canPlaceOrSwap(bag, payload.idx, cx, cy, cur)) ok = true;
+        if (!ok) {
+          const [cx2, cy2] = cellAt(...dims(!cur));
+          if (DFR.canPlaceOrSwap(bag, payload.idx, cx2, cy2, !cur)) { rot = !cur; cx = cx2; cy = cy2; ok = true; }
+        }
         if (Drag.cur) setDragRot(Drag.cur, rot);
         return { type: "repos", which, el: grid, cx, cy, rot, ok };
       }
@@ -857,8 +876,8 @@
     const d = Drag.cur;
     if (!d) return;
     d.x = e.clientX; d.y = e.clientY;
-    d.ghost.style.left = e.clientX + "px";
-    d.ghost.style.top = e.clientY + "px";
+    d.ghost.style.left = (e.clientX - d.off.x) + "px"; // 抓取点跟随指针
+    d.ghost.style.top = (e.clientY - d.off.y) + "px";
     const t = dragTargetAt(d.payload, e.clientX, e.clientY);
     if (d.target && d.target.el && d.target.el !== (t && t.el)) d.target.el.classList.remove("drop-ok", "drop-bad");
     d.target = t;
