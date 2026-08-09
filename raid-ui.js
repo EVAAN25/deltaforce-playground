@@ -1177,13 +1177,12 @@
   const CELEB_TIERS = [
     { img: "assets/meme/full.jpg", text: "鼠鼠吃成球了！！！", bgm: "assets/sfx/extract-fat.mp3", rate: 1.4 }, // SS/S 吃撑：1.4倍速得吃小曲
     { img: "assets/meme/ok.jpg", text: "鼠鼠来啰，小有收获～", bgm: "assets/sfx/extract-ok.mp3", rate: 1.0 },  // A/B 还行：原速
-    { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: null },                                   // C 白跑（合成短音）
+    { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: "assets/sfx/extract-ok.mp3", rate: 0.85 }, // C 白跑：0.85慢速丧气版
   ];
   const FAIL_SHOW = {
     caught: { img: "assets/meme/cry.jpg", title: "💀 被一脚踢死", text: "流泪鼠鼠头：包撒了一地，只保住安全箱……", bgm: "assets/sfx/fail-caught.mp3", rate: 1.0 }, // 一剪梅（雪花飘飘=凉凉）
     lost: { img: "assets/meme/cry2.jpg", title: "⏱ 迷失禁区", text: "鼠鼠找不到回家的路了……", bgm: "assets/sfx/fail-lost.mp3", rate: 1.0 }, // 二泉映月（凄凉）
   };
-  let celebTimer = 0;
 
   function celebTierOf(gradeG) { return (gradeG === "SS" || gradeG === "S") ? 0 : (gradeG === "A" || gradeG === "B") ? 1 : 2; }
 
@@ -1213,8 +1212,7 @@
     };
     if (opts.ok) $("#celebOk").onclick = hideCelebration;
     $("#raidCeleb").classList.remove("hidden");
-    clearTimeout(celebTimer);
-    celebTimer = setTimeout(hideCelebration, 15000); // 15s 没点自己收
+    // 不自动收卡：用户点了才算数
   }
 
   function showCelebration(run, grade, value) {
@@ -1246,7 +1244,6 @@
   }
 
   function hideCelebration() {
-    clearTimeout(celebTimer);
     $("#raidCeleb").classList.add("hidden");
   }
 
