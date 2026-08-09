@@ -84,13 +84,15 @@ with sync_playwright() as p:
     label = pg.text_content("#raidBtnF").strip()
     check("交互按钮文案跟随场景=再 翻", label == "再 翻", label)
 
-    # 「背包」按钮开关背包浮层
+    # 「背包」按钮开关背包浮层（浮层开着时操控条收起，用面板上的「收起」关）
     pg.tap("#raidBtnBag")
     time.sleep(0.3)
     check("背包按钮打开背包浮层", pg.is_visible("#bagOverlay"))
-    pg.tap("#raidBtnBag")
+    check("浮层开着时操控条收起", pg.evaluate("() => getComputedStyle(document.querySelector('#raidTouchUI')).display") == "none")
+    pg.tap("#bagOvClose")
     time.sleep(0.3)
-    check("背包按钮再按关闭", not pg.is_visible("#bagOverlay"))
+    check("收起按钮关闭背包浮层", not pg.is_visible("#bagOverlay"))
+    check("关浮层后操控条恢复", pg.evaluate("() => getComputedStyle(document.querySelector('#raidTouchUI')).display") == "flex")
 
     # 浮层内容器与背包在窄屏竖排且不溢出
     check("浮层不溢出屏宽", pg.evaluate("() => document.querySelector('#raidPanel').getBoundingClientRect().width <= 390"))

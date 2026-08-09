@@ -498,18 +498,25 @@
     if (c) openSearch(c);
   }
 
+  // 触屏操控条显隐：浮层（搜索/背包）打开时收起，避免挡住面板底部按钮
+  function syncOvClass() {
+    document.body.classList.toggle("ov-open", !!(Raid.overlay || Raid.bagOpen));
+  }
+
   // ---------- 背包浮层（Tab/ESC 开关；开着时局内暂停，与搜索浮层互斥） ----------
   function toggleBag() {
     if (Raid.overlay || !Raid.run || Raid.run.status !== "playing") return;
     Raid.bagOpen = !Raid.bagOpen;
     $("#bagOverlay").classList.toggle("hidden", !Raid.bagOpen);
     if (Raid.bagOpen) renderBags();
+    syncOvClass();
   }
 
   function closeBag() {
     if (!Raid.bagOpen) return;
     Raid.bagOpen = false;
     $("#bagOverlay").classList.add("hidden");
+    syncOvClass();
   }
 
   function checkExtract(now) {
@@ -855,6 +862,7 @@
     }
     const ov = { c, searching: null, auto: false, done: false, cancelled: false, value: 0 };
     Raid.overlay = ov;
+    syncOvClass();
     run.queue = [];
 
     $("#rpTitle").innerHTML = `${c.name}<span class="rp-tier">${TIER_NAME[c.tier]} · ${c.w}×${c.h}</span>`;
@@ -897,7 +905,7 @@
         return `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格" style="${pos}"><span class="rp-unknown">?</span></div>`;
       }
       return `<div class="rp-item revealed g${d.item.grade}${d.taken ? " taken" : ""}" data-i="${i}"
-        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : " · 悬停按F/拖拽入包"}" style="${pos}">
+        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : " · 双击/按F/拖拽入包"}" style="${pos}">
         ${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div></div>`;
     }).join("");
     for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
@@ -912,7 +920,7 @@
     syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
   }
 
-  // 容器格子交互（悬停按 F 入包 + 可直接拖进背包）；revealItem 就地揭晓的格子也要补绑
+  // 容器格子交互（悬停按 F / 双击 / 拖拽入包）；revealItem 就地揭晓的格子也要补绑
   function bindGridItem(el, i) {
     el.addEventListener("pointerenter", () => { Raid.hover = { kind: "grid", i }; });
     el.addEventListener("pointerleave", () => {
@@ -920,6 +928,12 @@
       if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
     });
     el.addEventListener("pointerdown", (e) => dragPress({ kind: "grid", i }, el, e));
+    el.addEventListener("dblclick", () => {
+      const ov = Raid.overlay;
+      if (!ov || ov.cancelled) return;
+      const si = stagedDrops(ov.c).indexOf(ov.c.drops[i]);
+      if (si >= 0) autoTake(ov, si);
+    });
   }
 
   // 逐件鉴定：放大镜转圈，耗时 ∝ 品质并加随机扰动（官方"转得越久越值钱"，偶有久转出低货）
@@ -970,7 +984,7 @@
     if (el) {
       el.classList.remove("rp-silhouette", "searching");
       el.classList.add("g" + d.item.grade, "revealed");
-      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 悬停按F/拖拽入包`;
+      el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 双击/按F/拖拽入包`;
       el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
       bindGridItem(el, i); // 就地揭晓的格子补绑交互（否则首开时按 F/拖拽不生效）
     }
@@ -1103,6 +1117,7 @@
     if (!ov.c.searched) { ov.c.searched = true; run.searched++; } // 只首次计入"摸过"
     Raid.overlay = null;
     $("#raidOverlay").classList.add("hidden");
+    syncOvClass();
     if (left) DF_APP.toast(`${left} 件留在「${ov.c.name}」里了，随时可以回来拿`);
     updateHUD();
     onEnterTile();
@@ -1120,6 +1135,7 @@
     updateExtractBar();
     if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); Sfx.rustleStop(); }
     closeBag();
+    syncOvClass();
 
     const mainV = DFR.bagValue(run.bagMain);
     const safeV = DFR.bagValue(run.bagSafe);

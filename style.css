@@ -588,6 +588,8 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
     gap: 12px; margin-top: 10px; padding: 0 6px; user-select: none; -webkit-user-select: none;
     position: relative; z-index: 45; /* 浮层开着时按钮仍可点（背包再按=关闭） */
   }
+  /* 浮层打开时收起操控条：不挡「收工走人/收起」，浮层自身有关闭按钮 */
+  body.ov-open .raid-touch-ui { display: none; }
   .raid-joy {
     position: relative; width: 104px; height: 104px; flex: none; border-radius: 50%;
     background: rgba(255, 255, 255, .04); border: 1.5px solid rgba(255, 255, 255, .14);

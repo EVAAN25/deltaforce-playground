@@ -115,6 +115,14 @@ with sync_playwright() as p:
         check("容器格子直接拖入背包", bag_n == bag_before + 1, f"bag={bag_n}")
         check("格子置为已拿走", pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.taken').length") >= 1)
 
+    # 双击容器格子物品图标 → 入包（如还有未拿走的）
+    if pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length") > 0:
+        bag_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+        pg.dispatch_event("#rpGrid .rp-item.revealed:not(.taken)", "dblclick")
+        time.sleep(0.3)
+        bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+        check("双击物品图标进包", bag_n == bag_before + 1, f"bag={bag_n}")
+
     # 同包拖拽挪位：找主背包里第一个能挪到别处的件，拖到该格
     repo = pg.evaluate("""() => {
       const Raid = window.DFR_UI._raid, DFR = window.DFR;
