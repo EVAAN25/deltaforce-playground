@@ -1192,7 +1192,7 @@
     if (opts.again) btns.push(`<button class="btn" id="celebAgain">再来一局 →</button>`);
     if (opts.goLevels) btns.push(`<button class="btn" id="celebGoLevels">去闯关 · 关卡模式 →</button>`);
     if (opts.next) btns.push(`<button class="btn" id="celebNext">下一关：${DFR.LEVELS[run.level + 1].name} →</button>`);
-    if (opts.ok) btns.push(`<button class="btn ghost" id="celebOk">收下喜悦</button>`);
+    if (opts.ok) btns.push(`<button class="btn ghost" id="celebOk">${typeof opts.ok === "string" ? opts.ok : "收下喜悦"}</button>`);
     $("#celebBtns").innerHTML = btns.join("");
     $("#celebShare").onclick = () => DF_APP.copyText(Raid.share);
     if (opts.again) $("#celebAgain").onclick = () => {
@@ -1224,7 +1224,7 @@
     g.className = "celeb-grade" + (grade.g === "C" ? " gC" : "");
     $("#celebText").textContent = `${t.text} —— 带出【${DFR.fmt(value)}】`;
     wireCardButtons(run, {
-      ok: true,
+      ok: celebTierOf(grade.g) === 2 ? "含泪收下" : true, // 白跑一趟不"收下喜悦"
       goLevels: run.mode === "daily",
       next: run.mode === "levels" && run.level < DFR.LEVELS.length - 1,
     });
