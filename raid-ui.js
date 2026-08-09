@@ -625,7 +625,9 @@
       }
     }
     syncHoverFromPointer(); // 元素换新后按光标位置重建悬停
-    $("#bagOvValue").textContent = `价值【${DFR.fmt(DFR.bagValue(run.bagMain) + DFR.bagValue(run.bagSafe))}】`;
+    const carryV = DFR.bagValue(run.bagMain) + DFR.bagValue(run.bagSafe);
+    $("#bagOvValue").textContent = `价值【${DFR.fmt(carryV)}】`;
+    $("#rpBagValue").textContent = `身上【${DFR.fmt(carryV)}】`; // 主背包+安全箱合计
   }
   function bagItemAt(entry, cs) {
     const it = entry.item;
@@ -1086,7 +1088,7 @@
     const run = Raid.run;
     const staged = stagedDrops(ov.c);
     ov.value = ov.c.drops.filter((d) => d.revealed).reduce((s, d) => s + d.item.value, 0);
-    $("#rpValue").textContent = `价值【${DFR.fmt(ov.value)}】`;
+    $("#rpValue").textContent = `箱内【${DFR.fmt(ov.value)}】`;
     $("#rpStaging").innerHTML = staged.map((d, i) => {
       const it = d.item;
       const canMain = fitsBagSmart(run.bagMain, it);

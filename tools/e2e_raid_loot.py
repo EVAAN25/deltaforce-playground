@@ -71,6 +71,10 @@ with sync_playwright() as p:
     time.sleep(0.3)
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
     check("双击放入背包", bag_n == 2)
+    # 身上价值 = 主背包+安全箱合计，实时更新
+    carry = pg.evaluate("() => window.DFR.bagValue(window.DFR_UI._raid.run.bagMain) + window.DFR.bagValue(window.DFR_UI._raid.run.bagSafe)")
+    shown = pg.evaluate("() => parseInt(document.querySelector('#rpBagValue').textContent.replace(/[^0-9]/g, ''))")
+    check("背包区显示身上合计价值", shown == carry and carry > 0, f"{shown}/{carry}")
 
     # 悬停按 F → 入包（待拾取区还有才测）
     if pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length") > 0:

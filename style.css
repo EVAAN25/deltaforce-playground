@@ -493,6 +493,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .rp-bags { flex: 0 0 auto; }
 .rp-bags .raid-bag { margin-bottom: 12px; }
 .rp-bags .raid-bag h3 { font-size: 13px; }
+.rp-bag-value { font-size: 14px; font-weight: 800; color: var(--orange); text-align: right; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
 .rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px auto 0; max-width: calc(var(--bagcell) * 6 + 4px); }
 
 /* 背包浮层（Tab/ESC 呼出） */
