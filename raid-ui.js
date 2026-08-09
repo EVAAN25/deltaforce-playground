@@ -827,10 +827,13 @@
         const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--bagcell"), 10) || 44;
         const r = grid.getBoundingClientRect();
         const cx = Math.floor((x - r.left) / cs), cy = Math.floor((y - r.top) / cs);
-        // 自动横竖：当前朝向放不下、换个朝向能放，就自动转过去（两者皆可时保持原朝向）
+        const bag = Raid.run[which];
         const cur = Drag.cur ? Drag.cur.rot : false;
-        let rot = cur, ok = DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, cur);
-        if (!ok && DFR.canPlaceAt(Raid.run[which], payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
+        // 优先级：当前朝向直接放 → 换朝向放（自动横竖）→ 空位都不行才互换（先当前朝向再换朝向）
+        let rot = cur, ok = DFR.canPlaceAt(bag, payload.idx, cx, cy, cur);
+        if (!ok && DFR.canPlaceAt(bag, payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
+        if (!ok && DFR.canPlaceOrSwap(bag, payload.idx, cx, cy, cur)) { rot = cur; ok = true; }
+        if (!ok && DFR.canPlaceOrSwap(bag, payload.idx, cx, cy, !cur)) { rot = !cur; ok = true; }
         if (Drag.cur) setDragRot(Drag.cur, rot);
         return { type: "repos", which, el: grid, cx, cy, rot, ok };
       }
@@ -873,8 +876,9 @@
       return;
     }
     if (!t.ok) return;
-    if (t.type === "repos") { // 同包挪位（含自动横竖）
-      if (DFR.placeAt(Raid.run[t.which], d.payload.idx, t.cx, t.cy, t.rot)) { Sfx.pickup(); renderBags(); }
+    if (t.type === "repos") { // 同包挪位（含自动横竖；压着 1 件且空间允许时互换）
+      const r = DFR.placeOrSwap(Raid.run[t.which], d.payload.idx, t.cx, t.cy, t.rot);
+      if (r) { Sfx.pickup(); renderBags(); }
       return;
     }
     if (t.type === "bag") {

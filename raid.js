@@ -437,6 +437,74 @@
     return true;
   }
 
+  // 占某格的物品下标，空格返回 -1
+  function itemIndexAt(bag, x, y) {
+    for (let i = 0; i < bag.items.length; i++) {
+      const e = bag.items[i];
+      if (x >= e.x && x < e.x + e.w && y >= e.y && y < e.y + e.h) return i;
+    }
+    return -1;
+  }
+
+  /*
+   * 拖拽落位带互换：能放就放（"moved"）；放不下且目标区只压着 1 件别的物品时，
+   * 尝试互换——A 落到目标位，B 去 A 的原位（B 保持自身形状，A 的原位须放得下 B），
+   * 成功返回 "swapped"，都不行返回 null 且不动包。
+   */
+  function placeOrSwap(bag, idx, x, y, rot) {
+    if (placeAt(bag, idx, x, y, rot)) return "moved";
+    const it = bag.items[idx];
+    if (!it) return null;
+    const w = rot ? it.h : it.w, h = rot ? it.w : it.h;
+    if (x < 0 || y < 0 || x + w > bag.w || y + h > bag.h) return null;
+    const others = new Set();
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      const cx = x + dx, cy = y + dy;
+      if (cx >= it.x && cx < it.x + it.w && cy >= it.y && cy < it.y + it.h) continue; // 自身原位
+      const j = itemIndexAt(bag, cx, cy);
+      if (j >= 0 && j !== idx) others.add(j);
+    }
+    if (others.size !== 1) return null;
+    const B = bag.items[others.values().next().value];
+    // 快照以便失败还原
+    const a = { x: it.x, y: it.y, w: it.w, h: it.h };
+    const b = { x: B.x, y: B.y, w: B.w, h: B.h };
+    const clear = (e) => { for (let dy = 0; dy < e.h; dy++) for (let dx = 0; dx < e.w; dx++) bag.occ[e.y + dy][e.x + dx] = 0; };
+    const fill = (e) => { for (let dy = 0; dy < e.h; dy++) for (let dx = 0; dx < e.w; dx++) bag.occ[e.y + dy][e.x + dx] = 1; };
+    const areaFree = (bx, by, bw, bh) => {
+      if (bx < 0 || by < 0 || bx + bw > bag.w || by + bh > bag.h) return false;
+      for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) if (bag.occ[by + dy][bx + dx]) return false;
+      return true;
+    };
+    clear(it); clear(B);
+    // A 落目标位（placeAt 已失败过，但那是 B 占着导致的；清空后必成）
+    it.x = x; it.y = y; it.w = w; it.h = h;
+    fill(it);
+    // B 去 A 的原位
+    if (areaFree(a.x, a.y, B.w, B.h)) {
+      B.x = a.x; B.y = a.y;
+      fill(B);
+      return "swapped";
+    }
+    // 还原
+    it.x = a.x; it.y = a.y; it.w = a.w; it.h = a.h;
+    B.x = b.x; B.y = b.y; B.w = b.w; B.h = b.h;
+    clear(it); clear(B); // 位置/形状已还原，重铺占用
+    fill(it); fill(B);
+    return null;
+  }
+
+  // 不改变 bag 的"挪位或互换"可行性（克隆试跑）
+  function canPlaceOrSwap(bag, idx, x, y, rot) {
+    if (canPlaceAt(bag, idx, x, y, rot)) return true;
+    const clone = {
+      w: bag.w, h: bag.h,
+      occ: bag.occ.map((r) => r.slice()),
+      items: bag.items.map((e) => ({ item: e.item, x: e.x, y: e.y, w: e.w, h: e.h })),
+    };
+    return placeOrSwap(clone, idx, x, y, rot) != null;
+  }
+
   // ---------- 分享卡 ----------
 
   function buildRaidShare(opts) {
@@ -467,7 +535,7 @@
     makeGrid, bfsReachable, findPath, losClear,
     tryGenMap, validateMap, generateRaid, makeSolidFn,
     fitsPossible, weightedGrade, packFirstFit, rollContainer,
-    makeBag, addToBag, addToBagSmart, removeFromBag, canPlaceAt, placeAt, bagValue,
+    makeBag, addToBag, addToBagSmart, removeFromBag, canPlaceAt, placeAt, itemIndexAt, placeOrSwap, canPlaceOrSwap, bagValue,
     buildRaidShare,
   };
 });

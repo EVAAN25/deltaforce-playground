@@ -616,6 +616,47 @@ ok("鼠鼠摸金：包内挪位横竖切换（placeAt rot）", () => {
   assert.strictEqual(bag.items[i1].w, 1);
 });
 
+ok("鼠鼠摸金：拖拽互换位置（placeOrSwap）", () => {
+  const mk = (id, l, w) => ({ id, name: "物" + id, grade: 2, len: l, wid: w, cells: l * w, value: 100, perCell: 50 });
+  const occOK = (bag) => {
+    const occ = DFR.makeGrid(bag.w, bag.h, 0);
+    for (const e of bag.items) for (let dy = 0; dy < e.h; dy++) for (let dx = 0; dx < e.w; dx++) {
+      if (occ[e.y + dy][e.x + dx]) return false;
+      occ[e.y + dy][e.x + dx] = 1;
+    }
+    return bag.occ.flat().filter(Boolean).length === bag.items.reduce((s, e) => s + e.w * e.h, 0);
+  };
+  // A=2×1 在 (0,0)，B=1×1 在 (2,0)：A 拖到 (2,0) → 互换
+  let bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, mk(1, 2, 1));
+  DFR.addToBag(bag, mk(2, 1, 1));
+  assert.strictEqual(DFR.placeOrSwap(bag, 0, 2, 0, false), "swapped");
+  assert.deepStrictEqual([bag.items[0].x, bag.items[0].y, bag.items[0].w, bag.items[0].h], [2, 0, 2, 1], "A 落目标位");
+  assert.deepStrictEqual([bag.items[1].x, bag.items[1].y], [0, 0], "B 去 A 原位");
+  assert(occOK(bag), "互换后占用一致");
+  // B 放不进 A 原位时不换：A=1×1 (0,0)，C=2×2 (1,0)-(2,1)，A 拖到 (1,1) 压 C → C 塞不进 (0,0) 的 1 格 → 失败
+  bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, mk(1, 1, 1));
+  DFR.addToBag(bag, Object.assign(mk(3, 2, 2)));
+  assert.strictEqual(DFR.placeOrSwap(bag, 0, 1, 1, false), null, "大件塞不回小位不换");
+  assert.deepStrictEqual([bag.items[0].x, bag.items[0].y], [0, 0], "A 没动");
+  assert(occOK(bag), "失败后占用不变");
+  // 压着 2 件不同物品不换：A=2×1 (0,0)，B/C 两个 1×1 在 (2,0)(3,0)，A 拖到 (2,0) 目标区压 B、C → 不换
+  bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, mk(1, 2, 1)); // (0,0)-(1,0)
+  DFR.addToBag(bag, mk(2, 1, 1)); // (2,0)
+  DFR.addToBag(bag, mk(3, 1, 1)); // (3,0)
+  assert.strictEqual(DFR.placeOrSwap(bag, 0, 2, 0, false), null, "目标区压两件不换");
+  assert.deepStrictEqual([bag.items[0].x, bag.items[0].y], [0, 0], "A 没动");
+  assert(occOK(bag), "失败后占用不变");
+  // 空位挪移仍走 moved
+  bag = DFR.makeBag(4, 2);
+  DFR.addToBag(bag, mk(1, 1, 1));
+  assert.strictEqual(DFR.placeOrSwap(bag, 0, 3, 1, false), "moved");
+  assert(DFR.canPlaceOrSwap(bag, 0, 3, 1, false), "canPlaceOrSwap 空位 true");
+  assert(!DFR.canPlaceOrSwap(bag, 0, 5, 1, false), "出界 false");
+});
+
 ok("鼠鼠摸金：未定价物品（value=null）不进掉落池、结算无 NaN", () => {
   // 数据里存在未定价物品（火箭燃料等，2026-08-06 起价值切数据帝真实物价）
   assert(DF_LOOT.items.some((i) => i.value === null), "前提：存在未定价物品");
