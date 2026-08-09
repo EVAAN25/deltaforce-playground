@@ -67,7 +67,7 @@ with sync_playwright() as p:
     check("待拾取区列出剩余的货", staged == total - 1, f"{staged}/{total - 1}")
 
     # 双击第一件 → 入包
-    pg.dispatch_event("#rpStaging .rp-stage-item", "dblclick")
+    pg.locator("#rpStaging .rp-stage-item").first.dblclick()
     time.sleep(0.3)
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
     check("双击放入背包", bag_n == 2)
@@ -118,7 +118,7 @@ with sync_playwright() as p:
     # 双击容器格子物品图标 → 入包（如还有未拿走的）
     if pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length") > 0:
         bag_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-        pg.dispatch_event("#rpGrid .rp-item.revealed:not(.taken)", "dblclick")
+        pg.locator("#rpGrid .rp-item.revealed:not(.taken)").first.dblclick()
         time.sleep(0.3)
         bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
         check("双击物品图标进包", bag_n == bag_before + 1, f"bag={bag_n}")
@@ -275,6 +275,43 @@ with sync_playwright() as p:
       a.src = 'assets/sfx/reveal-red-v3-half.mp3';
     })""")
     check("红音效 V3 可加载", snd == "OK")
+
+    # 失败也弹卡（被抓）：表情包 + 分享/再来一局按钮（关卡模式无去闯关）
+    pg.evaluate("""() => {
+      const Raid = window.DFR_UI._raid;
+      Raid.run.status = "playing";
+      const p = Raid.run.patrols[0];
+      p.radius = 99;
+      p.x = Raid.run.px; p.y = Raid.run.py;
+    }""")
+    for _ in range(20):  # detect 走 tick，轮询等结算
+        if pg.evaluate("() => window.DFR_UI._raid.run.status") != "playing": break
+        time.sleep(0.3)
+    check("被抓失败卡弹出", pg.is_visible("#raidCeleb"))
+    check("失败卡标题", "被一脚踢死" in pg.text_content("#celebGrade"))
+    check("失败卡表情包已加载", pg.evaluate("() => { const im = document.querySelector('#celebImg'); return im.complete && im.naturalWidth > 0; }"))
+    check("失败卡有分享/再来一局", pg.is_visible("#celebShare") and pg.is_visible("#celebAgain"))
+    check("关卡模式失败卡无去闯关", pg.evaluate("() => !document.querySelector('#celebGoLevels')"))
+    pg.click("#celebAgain")
+    time.sleep(0.5)
+    check("失败卡再来一局重开", pg.evaluate("() => window.DFR_UI._raid.run.status") == "playing" and not pg.is_visible("#raidCeleb"))
+
+    # 每日模式失败卡有去闯关
+    pg.evaluate("() => window.DFR_UI.setMode('daily')")
+    time.sleep(0.5)
+    pg.evaluate("""() => {
+      const Raid = window.DFR_UI._raid;
+      const p = Raid.run.patrols[0];
+      p.radius = 99;
+      p.x = Raid.run.px; p.y = Raid.run.py;
+    }""")
+    for _ in range(20):
+        if pg.evaluate("() => window.DFR_UI._raid.run.status") != "playing": break
+        time.sleep(0.3)
+    check("每日被抓失败卡有去闯关", pg.is_visible("#celebGoLevels"))
+    pg.click("#celebGoLevels")
+    time.sleep(0.5)
+    check("失败卡去闯关切关卡模式", pg.evaluate("() => window.DFR_UI.getMode()") == "levels")
 
     check("全程无 JS 报错", not errors, "; ".join(errors[:3]))
     b.close()

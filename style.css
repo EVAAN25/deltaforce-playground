@@ -544,6 +544,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   100% { transform: scale(1) rotate(0deg); }
 }
 .celeb-card img { width: 220px; max-width: 80%; border-radius: 12px; display: block; margin: 0 auto 10px; }
+.celeb-card.fail { border-color: var(--g6); box-shadow: 0 0 44px 8px rgba(208, 75, 58, .4), var(--shadow-layer); }
 .celeb-grade { font-size: 44px; font-weight: 900; color: var(--g5); line-height: 1.1; text-shadow: 0 2px 12px rgba(224, 168, 60, .5); }
 .celeb-grade.gC { color: var(--g1); text-shadow: none; }
 .celeb-text { font-size: 15px; font-weight: 700; color: var(--ink); margin: 6px 0 12px; }

@@ -150,22 +150,42 @@
       const t = c.currentTime;
       blip(440, t, 0.16, "sine", 0.15); blip(349.2, t + 0.18, 0.16, "sine", 0.14); blip(261.6, t + 0.36, 0.45, "sine", 0.13);
     }
-    // 撤离结算 BGM（鼠鼠梗曲《寂寞的人伤心的歌》，按评级分档）
+    // 撤离结算 BGM（鼠鼠梗曲《寂寞的人伤心的歌》，按评级分档分速）
     let bgm = null;
     function bgmStop() {
       if (!bgm) return;
       try { bgm.pause(); } catch (e) { /* 已停 */ }
       bgm = null;
     }
-    function bgmPlay(src) {
+    function bgmPlay(src, rate) {
       bgmStop();
-      const a = new Audio(src);
+      const a = revealCache[src] || new Audio(src);
+      a.currentTime = 0;
       a.volume = 0.75;
+      a.playbackRate = rate || 1;
       const p = a.play();
       if (p && p.catch) p.catch(() => {});
       bgm = a;
     }
-    return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost, bgmPlay, bgmStop };
+    // 移动端自动播放限制：首个手势里把所有结局/揭晓音频解锁（play→pause 标记为允许）
+    let unlocked = false;
+    function unlock() {
+      if (unlocked) return;
+      unlocked = true;
+      const list = new Set(Object.values(REVEAL_SRC));
+      list.add("assets/sfx/extract-fat.mp3");
+      list.add("assets/sfx/extract-ok.mp3");
+      for (const src of list) {
+        const a = new Audio(src);
+        a.preload = "auto";
+        a.muted = true;
+        const p = a.play();
+        if (p && p.then) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
+        else a.muted = false;
+        revealCache[src] = a; // 解锁过的元素后续复用
+      }
+    }
+    return { rustleStart, rustleStop, ding, pickup, fanfare, sting, lost, bgmPlay, bgmStop, unlock };
   })();
 
   // ---------- 撤离撒花（纯 DOM，无外部库） ----------
@@ -694,6 +714,17 @@
   // ---------- 拖拽（pointer 实现，桌面 / 触屏通用；位移超阈值才算拖，兼容点击与双击） ----------
   const Drag = { cur: null };
 
+  // 双击/双点统一入口：450ms 内第二次轻点触发（鼠标双击与触屏双点共用，避免双通道重复触发）
+  function bindDblTap(el, fn) {
+    let last = 0;
+    el.addEventListener("pointerup", (e) => {
+      if (Drag.cur) return;
+      const now = performance.now();
+      if (now - last < 450) { last = 0; fn(e); }
+      else last = now;
+    });
+  }
+
   function dragItem(payload) {
     const run = Raid.run;
     if (!run) return null;
@@ -943,7 +974,7 @@
       if (h && h.kind === "grid" && h.i === i) Raid.hover = null;
     });
     el.addEventListener("pointerdown", (e) => dragPress({ kind: "grid", i }, el, e));
-    el.addEventListener("dblclick", () => {
+    bindDblTap(el, () => { // 双击/双点入包
       const ov = Raid.overlay;
       if (!ov || ov.cancelled) return;
       const si = stagedDrops(ov.c).indexOf(ov.c.drops[i]);
@@ -1037,7 +1068,7 @@
       </div>`;
     }).join("");
     $("#rpStaging").querySelectorAll(".rp-stage-item").forEach((el, i) => {
-      el.addEventListener("dblclick", (e) => {
+      bindDblTap(el, (e) => { // 双击/双点入包（按钮区除外）
         if (e.target.closest("button")) return;
         autoTake(ov, i);
       });
@@ -1140,40 +1171,75 @@
     detect();
   }
 
-  // ---------- 撤离庆祝卡（按评级三档：表情包 + 分档 BGM + 引导） ----------
+  // ---------- 结算弹卡（成功/失败统一：表情包 + 分档音乐 + 分享 + 引导） ----------
   const CELEB_TIERS = [
-    { img: "assets/meme/full.jpg", text: "鼠鼠吃成球了！！！", bgm: "assets/sfx/extract-fat.mp3" },  // SS/S 吃撑
-    { img: "assets/meme/ok.jpg", text: "鼠鼠来啰，小有收获～", bgm: "assets/sfx/extract-ok.mp3" },   // A/B 还行
-    { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: null },                        // C 白跑（合成短音）
+    { img: "assets/meme/full.jpg", text: "鼠鼠吃成球了！！！", bgm: "assets/sfx/extract-fat.mp3", rate: 1.4 }, // SS/S 吃撑：1.4倍速得吃小曲
+    { img: "assets/meme/ok.jpg", text: "鼠鼠来啰，小有收获～", bgm: "assets/sfx/extract-ok.mp3", rate: 1.0 },  // A/B 还行：原速
+    { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: null },                                   // C 白跑（合成短音）
   ];
+  const FAIL_SHOW = {
+    caught: { img: "assets/meme/cry.jpg", title: "💀 被一脚踢死", text: "流泪鼠鼠头：包撒了一地，只保住安全箱……", bgm: "assets/sfx/extract-ok.mp3", rate: 1.0 },
+    lost: { img: "assets/meme/cry2.jpg", title: "⏱ 迷失禁区", text: "鼠鼠找不到回家的路了……", bgm: null }, // 合成迷失音
+  };
   let celebTimer = 0;
 
   function celebTierOf(gradeG) { return (gradeG === "SS" || gradeG === "S") ? 0 : (gradeG === "A" || gradeG === "B") ? 1 : 2; }
 
+  // 弹卡按钮统一接线：分享 / 再来一局 / 去闯关 / 下一关 / 收下
+  function wireCardButtons(run, opts) {
+    const btns = [];
+    btns.push(`<button class="btn ghost" id="celebShare">复制分享卡</button>`);
+    if (opts.again) btns.push(`<button class="btn" id="celebAgain">再来一局 →</button>`);
+    if (opts.goLevels) btns.push(`<button class="btn" id="celebGoLevels">去闯关 · 关卡模式 →</button>`);
+    if (opts.next) btns.push(`<button class="btn" id="celebNext">下一关：${DFR.LEVELS[run.level + 1].name} →</button>`);
+    if (opts.ok) btns.push(`<button class="btn ghost" id="celebOk">收下喜悦</button>`);
+    $("#celebBtns").innerHTML = btns.join("");
+    $("#celebShare").onclick = () => DF_APP.copyText(Raid.share);
+    if (opts.again) $("#celebAgain").onclick = () => {
+      hideCelebration();
+      Sfx.bgmStop();
+      Raid.run = newRun(Raid.mode);
+      renderAll();
+    };
+    if (opts.goLevels) $("#celebGoLevels").onclick = () => { hideCelebration(); setMode("levels"); };
+    if (opts.next) $("#celebNext").onclick = () => {
+      hideCelebration();
+      Sfx.bgmStop();
+      Raid.level++;
+      Raid.run = null;
+      render();
+    };
+    if (opts.ok) $("#celebOk").onclick = hideCelebration;
+    $("#raidCeleb").classList.remove("hidden");
+    clearTimeout(celebTimer);
+    celebTimer = setTimeout(hideCelebration, 15000); // 15s 没点自己收
+  }
+
   function showCelebration(run, grade, value) {
     const t = CELEB_TIERS[celebTierOf(grade.g)];
+    $("#celebCard").classList.remove("fail");
     $("#celebImg").src = t.img;
     const g = $("#celebGrade");
     g.textContent = `${grade.g} · ${grade.name}`;
     g.className = "celeb-grade" + (grade.g === "C" ? " gC" : "");
     $("#celebText").textContent = `${t.text} —— 带出【${DFR.fmt(value)}】`;
-    const hasNext = run.mode === "levels" && run.level < DFR.LEVELS.length - 1;
-    const btns = [];
-    if (run.mode === "daily") btns.push(`<button class="btn" id="celebGoLevels">去闯关 · 关卡模式 →</button>`);
-    if (hasNext) btns.push(`<button class="btn" id="celebNext">下一关：${DFR.LEVELS[run.level + 1].name} →</button>`);
-    btns.push(`<button class="btn ghost" id="celebOk">收下喜悦</button>`);
-    $("#celebBtns").innerHTML = btns.join("");
-    $("#celebOk").onclick = hideCelebration;
-    if (run.mode === "daily") $("#celebGoLevels").onclick = () => { hideCelebration(); setMode("levels"); };
-    if (hasNext) $("#celebNext").onclick = () => {
-      hideCelebration();
-      Raid.level++;
-      Raid.run = null;
-      render();
-    };
-    $("#raidCeleb").classList.remove("hidden");
-    clearTimeout(celebTimer);
-    celebTimer = setTimeout(hideCelebration, 15000); // 15s 没点自己收
+    wireCardButtons(run, {
+      ok: true,
+      goLevels: run.mode === "daily",
+      next: run.mode === "levels" && run.level < DFR.LEVELS.length - 1,
+    });
+  }
+
+  function showFailCard(outcome) {
+    const run = Raid.run;
+    const t = FAIL_SHOW[outcome];
+    $("#celebCard").classList.add("fail");
+    $("#celebImg").src = t.img;
+    const g = $("#celebGrade");
+    g.textContent = t.title;
+    g.className = "celeb-grade gC";
+    $("#celebText").textContent = t.text;
+    wireCardButtons(run, { again: true, goLevels: run.mode === "daily" });
   }
 
   function hideCelebration() {
@@ -1200,20 +1266,33 @@
     const value = outcome === "extracted" ? mainV + safeV : safeV;
     const kept = (outcome === "extracted" ? run.bagMain.items.concat(run.bagSafe.items) : run.bagSafe.items)
       .map((e) => e.item);
+    const bestItem = kept.slice().sort((a, b) => b.value - a.value)[0];
+    // 分享卡文本（结算面板与弹卡共用）
+    Raid.share = DFR.buildRaidShare({
+      date: DF_APP.TODAY, practice: run.mode === "practice", outcome, value,
+      searched: run.searched, total: run.containers.length,
+      bestItemName: bestItem ? bestItem.name : null,
+      mapName: run.mode === "levels" ? DFR.LEVELS[run.level].name : null,
+    });
 
     // 结局音效与画面反馈
     if (outcome === "extracted") {
       const g = DFR.raidGrade(value).g;
       const tier = celebTierOf(g);
-      if (CELEB_TIERS[tier].bgm) Sfx.bgmPlay(CELEB_TIERS[tier].bgm); // 吃肥放鼠鼠梗曲
+      const t = CELEB_TIERS[tier];
+      if (t.bgm) Sfx.bgmPlay(t.bgm, t.rate); // 吃肥放鼠鼠梗曲（SS/S 1.4倍速，A/B 原速）
       else Sfx.fanfare(g); // 白跑：平淡合成短音
       confettiBurst(g);    // 撒花：评级越高越多
       showCelebration(run, DFR.raidGrade(value), value);
     } else if (outcome === "caught") {
-      Sfx.sting();
+      Sfx.bgmPlay(FAIL_SHOW.caught.bgm, FAIL_SHOW.caught.rate); // 失败也放梗曲（丧）
       const st = document.querySelector(".raid-stage");
       if (st) { st.classList.remove("death"); void st.offsetWidth; st.classList.add("death"); }
-    } else Sfx.lost();
+      showFailCard("caught");
+    } else {
+      Sfx.lost();
+      showFailCard("lost");
+    }
 
     // 图鉴收集（每日 / 练习都记）
     const coll = DF_APP.loadJSON("df_raid_collection", {});
@@ -1272,12 +1351,7 @@
         ${hasNext ? `<button class="btn" id="raidNextBtn">下一关：${DFR.LEVELS[run.level + 1].name} →</button>` : ""}
       </div>`;
     $("#raidResult").classList.remove("hidden");
-    $("#raidShareBtn").onclick = () => DF_APP.copyText(DFR.buildRaidShare({
-      date: DF_APP.TODAY, practice: run.mode === "practice", outcome, value,
-      searched: run.searched, total: run.containers.length,
-      bestItemName: bestItem ? bestItem.name : null,
-      mapName: run.mode === "levels" ? DFR.LEVELS[run.level].name : null,
-    }));
+    $("#raidShareBtn").onclick = () => DF_APP.copyText(Raid.share);
     $("#raidAgainBtn").onclick = () => {
       Sfx.bgmStop();
       Raid.run = newRun(Raid.mode);
@@ -1424,6 +1498,8 @@
     joy.addEventListener("pointercancel", end);
     $("#raidBtnF").addEventListener("click", () => {
       if (!Raid.run || Raid.run.status !== "playing") return;
+      // 触屏没有稳定悬停态（点过物品会留 hover 残留导致按钮失灵），直接走场景交互
+      if (IS_COARSE) { interact(); return; }
       if (!hoverAct()) interact(); // 与键盘 F 同一逻辑
     });
     $("#raidBtnBag").addEventListener("click", () => toggleBag());
@@ -1432,6 +1508,8 @@
   // ---------- 启动 ----------
   bindInput();
   bindTouchUI();
+  window.addEventListener("pointerdown", () => Sfx.unlock()); // 首个手势解锁音频（移动端自动播放限制）
+  window.addEventListener("keydown", () => Sfx.unlock());
   window.addEventListener("pointermove", (e) => { Raid.pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
   // 物品行的 img 默认可拖，会触发浏览器原生 HTML5 拖拽打断 pointer 流——全局拦掉
   document.addEventListener("dragstart", (e) => {

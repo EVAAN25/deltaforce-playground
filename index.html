@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>三角洲行动游乐场 · 粉丝同人小游戏</title>
 <meta name="description" content="非官方三角洲行动粉丝同人小游戏：改枪大师、猜枪械、枪械对决、火力排排坐、摸金对决、物资排排坐、鼠鼠摸金（2D 摸金撤离），每日一题可无限续玩。">
-<link rel="stylesheet" href="style.css?v=20260809c">
+<link rel="stylesheet" href="style.css?v=20260809d">
 </head>
 <body>
 
@@ -18,6 +18,13 @@
   <!-- 首页：四玩法导航 -->
   <section id="view-home" class="view">
     <div class="home-grid">
+      <a class="home-card" href="#/raid">
+        <div class="hc-emoji">🐭</div>
+        <div class="hc-body">
+          <h2>鼠鼠摸金<span class="dot" id="dot-raid"></span></h2>
+          <p>2D 摸金撤离（参考小涛查模拟器）：跑图开容器逐格开奖，格子背包取舍，躲开猛攻队巡逻，引导 5 秒肥肥撤离。</p>
+        </div>
+      </a>
       <a class="home-card" href="#/smith">
         <div class="hc-emoji">🔧</div>
         <div class="hc-body">
@@ -58,13 +65,6 @@
         <div class="hc-body">
           <h2>物资排排坐<span class="dot" id="dot-lootsort"></span></h2>
           <p>把 5 件物资按每日指定维度（总价值 / 单格价值）从高到低排好，3 次提交机会。</p>
-        </div>
-      </a>
-      <a class="home-card" href="#/raid">
-        <div class="hc-emoji">🐭</div>
-        <div class="hc-body">
-          <h2>鼠鼠摸金<span class="dot" id="dot-raid"></span></h2>
-          <p>2D 摸金撤离（参考小涛查模拟器）：跑图开容器逐格开奖，格子背包取舍，躲开猛攻队巡逻，引导 5 秒肥肥撤离。</p>
         </div>
       </a>
     </div>
@@ -362,6 +362,7 @@
     <details class="legend">
       <summary>规则说明</summary>
       <ul>
+        <li>评级（按带出总价值，被抓/迷失只算安全箱）：<b>SS·鼠王登神</b> ≥200万；<b>S·肥肥撤离</b> ≥80万；<b>A·吃得满嘴流油</b> ≥20万；<b>B·勉强回了本</b> ≥5万；<b>C·白跑一趟</b> 其余。结算弹卡的表情包和 BGM 按评级分档。</li>
         <li>手机 / 触屏：左下<b>摇杆</b>移动（点格子也能自动寻路），右下「<b>交互</b>」= 开搜 / 撤离、「<b>背包</b>」= 整理；搜出货后拖拽或双击入包，包内整理与电脑端一致。页面按设备自动切换桌面 / 触屏形态。</li>
         <li>WASD / 方向键逐格移动，或点击格子自动寻路；走到容器相邻格按 <b>F</b>（或直接点容器）开搜。</li>
         <li>搜索还原官方形态：开箱即见全部物品<b>剪影</b>（占格形状可预判大件），随后<b>自动逐件鉴定</b>——放大镜转圈 + 翻找声，转得越久越值钱；揭晓按品质配真实音效（白蓝/紫/金/红四档），金红带光效。</li>
@@ -384,12 +385,12 @@
 
 <div id="toast" class="toast hidden"></div>
 
-<script src="data/weapons.js?v=20260809c"></script>
-<script src="data/attachments.js?v=20260809c"></script>
-<script src="data/loot.js?v=20260809c"></script>
-<script src="game.js?v=20260809c"></script>
-<script src="raid.js?v=20260809c"></script>
-<script src="app.js?v=20260809c"></script>
-<script src="raid-ui.js?v=20260809c"></script>
+<script src="data/weapons.js?v=20260809d"></script>
+<script src="data/attachments.js?v=20260809d"></script>
+<script src="data/loot.js?v=20260809d"></script>
+<script src="game.js?v=20260809d"></script>
+<script src="raid.js?v=20260809d"></script>
+<script src="app.js?v=20260809d"></script>
+<script src="raid-ui.js?v=20260809d"></script>
 </body>
 </html>

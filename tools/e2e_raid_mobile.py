@@ -61,15 +61,25 @@ with sync_playwright() as p:
     for _ in range(120):
         if pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-silhouette').length") == 0: break
         time.sleep(0.5)
-    pg.dispatch_event("#rpStaging .rp-stage-item", "dblclick")
+    pg.locator("#rpStaging .rp-stage-item").first.dblclick()
     time.sleep(0.3)
     bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
     check("触屏双击入包", bag_n == 1, f"bag={bag_n}")
+
+    # 触屏真实双击（dbltap 兜底：350ms 内两次轻点，点在左侧物品区避开按钮）
+    if pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length") > 0:
+        pg.locator("#rpStaging .rp-stage-item").first.tap(position={"x": 20, "y": 10})
+        time.sleep(0.12)
+        pg.locator("#rpStaging .rp-stage-item").first.tap(position={"x": 20, "y": 10})
+        time.sleep(0.3)
+        bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+        check("触屏双击兜底入包", bag_n == 2, f"bag={bag_n}")
 
     # 触屏拖拽 staging → 背包（pointer 流）
     if pg.evaluate("() => document.querySelectorAll('#rpStaging .rp-stage-item').length") > 0:
         sb = pg.locator("#rpStaging .rp-stage-item").first.bounding_box()
         db = pg.locator("#rpBagMain").bounding_box()
+        bag_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
         pg.mouse.move(sb["x"] + sb["width"] / 2, sb["y"] + sb["height"] / 2)
         pg.mouse.down()
         pg.mouse.move(sb["x"] + sb["width"] / 2 + 20, sb["y"] + sb["height"] / 2 + 20, steps=3)
@@ -77,7 +87,7 @@ with sync_playwright() as p:
         pg.mouse.up()
         time.sleep(0.3)
         bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
-        check("触屏拖拽入包", bag_n == 2, f"bag={bag_n}")
+        check("触屏拖拽入包", bag_n == bag_before + 1, f"bag={bag_n}")
 
     pg.click("#rpClose")
     time.sleep(0.3)
