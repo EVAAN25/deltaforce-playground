@@ -265,6 +265,14 @@
         <span class="re-text">撤离引导中……</span>
       </div>
     </div>
+    <!-- 触屏操控条（仅触屏设备显示）：左摇杆移动，右侧交互/背包 -->
+    <div class="raid-touch-ui" id="raidTouchUI">
+      <div class="raid-joy" id="raidJoy"><div class="raid-joy-knob" id="raidJoyKnob"></div></div>
+      <div class="raid-touch-btns">
+        <button class="btn raid-btn-f" id="raidBtnF">交 互</button>
+        <button class="btn ghost" id="raidBtnBag">背 包</button>
+      </div>
+    </div>
     <p class="raid-tip" id="raidTip"></p>
     <p class="raid-story" id="raidStory"></p>
 
@@ -287,6 +295,7 @@
         <div class="rp-head">
           <h3>🐭 背包整理</h3>
           <div class="rp-value" id="bagOvValue">价值【0】</div>
+          <button class="btn ghost" id="bagOvClose">收 起</button>
         </div>
         <div class="bag-ov-body">
           <div class="raid-bag">
@@ -342,6 +351,7 @@
     <details class="legend">
       <summary>规则说明</summary>
       <ul>
+        <li>手机 / 触屏：左下<b>摇杆</b>移动（点格子也能自动寻路），右下「<b>交互</b>」= 开搜 / 撤离、「<b>背包</b>」= 整理；搜出货后拖拽或双击入包，包内整理与电脑端一致。页面按设备自动切换桌面 / 触屏形态。</li>
         <li>WASD / 方向键逐格移动，或点击格子自动寻路；走到容器相邻格按 <b>F</b>（或直接点容器）开搜。</li>
         <li>搜索还原官方形态：开箱即见全部物品<b>剪影</b>（占格形状可预判大件），随后<b>自动逐件鉴定</b>——放大镜转圈 + 翻找声，转得越久越值钱；揭晓按品质配真实音效（白蓝/紫/金/红四档），金红带光效。</li>
         <li>搜出的货点「入包 / 入箱」、<b>双击</b>、<b>悬停按 F</b> 或<b>拖拽</b>进背包（塞不下时背包会自动整理腾位）；<b>Tab</b> 随时呼出背包整理（Esc 关闭）；包内货可在搜索时拖回容器（或双击/悬停按 F 退回）、同包拖动挪位（贴边自动横竖）；<b>丢弃只能把包内货拖出面板外，没有快捷键</b>。主背包 6×4，被抓全部掉光；安全箱 2×2，死了迷失也保住。同一容器一局内可反复翻：内容不变、摸过的直接可见，带不走的回头再来拿。容器内容与布局每次首开都随机，只有爆率固定（同人自设，非官方概率）。</li>

@@ -337,6 +337,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   --g1: #8a8f98; --g2: #5fae63; --g3: #5b8dd9;
   --g4: #a06ee0; --g5: #e0a83c; --g6: #d04b3a;
   --bagcell: 44px;
+  --rpcell: 44px; /* 搜索浮层容器格尺寸（手机端 34px） */
 }
 .raid-credit {
   font-size: 12px; color: var(--ink-soft); line-height: 1.7; text-align: center;
@@ -566,8 +567,40 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .raid-coll-item .ci-count { font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 @media (max-width: 560px) {
-  :root { --bagcell: 40px; }
+  :root { --bagcell: 40px; --rpcell: 34px; }
   .raid-hud { gap: 12px; font-size: 13px; }
   .raid-bags { gap: 12px; }
   .raid-level { min-width: 130px; padding: 8px 10px; }
+}
+
+/* ---------- 触屏适配（pointer: coarse = 手机/平板） ---------- */
+.raid-touch-ui { display: none; }
+@media (pointer: coarse) {
+  .raid-touch-ui {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 10px; padding: 0 6px; user-select: none; -webkit-user-select: none;
+    position: relative; z-index: 45; /* 浮层开着时按钮仍可点（背包再按=关闭） */
+  }
+  .raid-joy {
+    position: relative; width: 104px; height: 104px; flex: none; border-radius: 50%;
+    background: rgba(255, 255, 255, .04); border: 1.5px solid rgba(255, 255, 255, .14);
+    touch-action: none;
+  }
+  .raid-joy-knob {
+    position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(224, 138, 60, .35); border: 2px solid var(--orange);
+    transform: translate(-50%, -50%);
+  }
+  .raid-joy.active .raid-joy-knob { background: rgba(224, 138, 60, .6); }
+  .raid-touch-btns { display: flex; gap: 10px; flex: none; }
+  .raid-touch-btns .btn { padding: 14px 20px; font-size: 16px; border-radius: 12px; touch-action: manipulation; }
+  .raid-btn-f { min-width: 88px; }
+  /* 浮层更贴边、内容更紧凑 */
+  .raid-overlay { padding: 6px; }
+  .raid-panel { padding: 10px; }
+  .rp-stage-item { padding: 4px 8px; font-size: 12px; gap: 8px; }
+  .rp-stage-item img, .rp-stage-item .rit-fb { width: 28px; height: 28px; }
+  .rp-msg { font-size: 12px; }
+  .rp-head h3 { font-size: 15px; }
+  .bag-panel { max-width: 100%; }
 }

@@ -9,7 +9,10 @@
   const TS = 30; // 每格像素（720×480 / 24×16）
   const TIER_NAME = { 6: "顶级容器", 5: "高级容器", 1: "低级容器" };
   const GRADE_NAME = { 1: "灰", 2: "绿", 3: "蓝", 4: "紫", 5: "金", 6: "红" };
-  const TIP_DEFAULT = "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>F</b>（或点容器）开吃 · 站到撤离点按 <b>F</b> 引导撤离 · <b>Tab</b> 整理背包";
+  const IS_COARSE = window.matchMedia && matchMedia("(pointer: coarse)").matches;
+  const TIP_DEFAULT = IS_COARSE
+    ? "摇杆 / 点格子移动 · 点容器开吃 · 右下「交互」开搜与撤离 · 「背包」整理"
+    : "WASD / 方向键移动 · 点击格子自动寻路 · 走到容器旁按 <b>F</b>（或点容器）开吃 · 站到撤离点按 <b>F</b> 引导撤离 · <b>Tab</b> 整理背包";
 
   // ---------- 图片兜底：品质色块 + 物品名首字 ----------
   window.__dfRaidImg = function (img) {
@@ -399,6 +402,9 @@
       }
     }
     else setTip(TIP_DEFAULT);
+    // 触屏「交互」按钮文案跟随场景
+    const fbtn = $("#raidBtnF");
+    if (fbtn) fbtn.textContent = onExtract ? "撤 离" : adj ? (adj.searched ? "再 翻" : "开 吃") : "交 互";
   }
 
   function adjacentContainer() {
@@ -877,8 +883,9 @@
   function renderGridItems(ov) {
     const c = ov.c;
     const grid = $("#rpGrid");
-    grid.style.gridTemplateColumns = `repeat(${c.w}, 44px)`;
-    grid.style.gridAutoRows = "44px";
+    const cs = parseInt(getComputedStyle(document.documentElement).getPropertyValue("--rpcell"), 10) || 44;
+    grid.style.gridTemplateColumns = `repeat(${c.w}, ${cs}px)`;
+    grid.style.gridAutoRows = cs + "px";
     const occ = DFR.makeGrid(c.w, c.h, 0);
     c.drops.forEach((d) => {
       for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
@@ -1279,8 +1286,62 @@
 
   window.DFR_UI = { render, setMode, onRoute, getMode: () => Raid.mode, _raid: Raid }; // _raid 供自动化自测
 
+  // ---------- 触屏操控（摇杆 + 交互/背包按钮；仅触屏设备显示，绑定无妨） ----------
+  function bindTouchUI() {
+    const joy = $("#raidJoy"), knob = $("#raidJoyKnob");
+    const R = 30; // 摇杆最大偏半径
+    let pid = null;
+    const clampR = (dx, dy) => {
+      const m = Math.hypot(dx, dy);
+      return m > R ? [dx / m * R, dy / m * R] : [dx, dy];
+    };
+    const setDir = (dx, dy) => {
+      const k = Raid.keys;
+      k.up = k.down = k.left = k.right = false;
+      if (Math.hypot(dx, dy) < 10) return; // 死区
+      if (Math.abs(dx) > Math.abs(dy)) k[dx > 0 ? "right" : "left"] = true;
+      else k[dy > 0 ? "down" : "up"] = true;
+    };
+    const moveKnob = (dx, dy) => { knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`; };
+    const vec = (e) => {
+      const r = joy.getBoundingClientRect();
+      return clampR(e.clientX - (r.left + r.width / 2), e.clientY - (r.top + r.height / 2));
+    };
+    joy.addEventListener("pointerdown", (e) => {
+      if (!Raid.active || !Raid.run || Raid.run.status !== "playing" || Raid.overlay || Raid.bagOpen) return;
+      pid = e.pointerId;
+      joy.setPointerCapture(pid);
+      joy.classList.add("active");
+      Raid.run.queue = []; Raid.run.autoSearch = null; // 摇杆接管，清寻路
+      const [dx, dy] = vec(e);
+      setDir(dx, dy); moveKnob(dx, dy);
+      e.preventDefault();
+    });
+    joy.addEventListener("pointermove", (e) => {
+      if (pid !== e.pointerId) return;
+      const [dx, dy] = vec(e);
+      setDir(dx, dy); moveKnob(dx, dy);
+    });
+    const end = (e) => {
+      if (pid !== e.pointerId) return;
+      pid = null;
+      joy.classList.remove("active");
+      const k = Raid.keys;
+      k.up = k.down = k.left = k.right = false;
+      moveKnob(0, 0);
+    };
+    joy.addEventListener("pointerup", end);
+    joy.addEventListener("pointercancel", end);
+    $("#raidBtnF").addEventListener("click", () => {
+      if (!Raid.run || Raid.run.status !== "playing") return;
+      if (!hoverAct()) interact(); // 与键盘 F 同一逻辑
+    });
+    $("#raidBtnBag").addEventListener("click", () => toggleBag());
+  }
+
   // ---------- 启动 ----------
   bindInput();
+  bindTouchUI();
   window.addEventListener("pointermove", (e) => { Raid.pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
   // 物品行的 img 默认可拖，会触发浏览器原生 HTML5 拖拽打断 pointer 流——全局拦掉
   document.addEventListener("dragstart", (e) => {
@@ -1289,5 +1350,6 @@
   $("#rpSkip").addEventListener("click", () => { if (Raid.overlay) { Raid.overlay.auto = true; searchAll(Raid.overlay); } });
   $("#rpClose").addEventListener("click", closeSearch);
   $("#bagOverlay").addEventListener("click", (e) => { if (e.target.id === "bagOverlay") closeBag(); }); // 点背板关闭
+  $("#bagOvClose").addEventListener("click", closeBag);
   if (location.hash === "#/raid") { Raid.active = true; render(); }
 })();
