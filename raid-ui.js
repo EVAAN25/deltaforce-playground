@@ -175,6 +175,8 @@
       const list = new Set(Object.values(REVEAL_SRC));
       list.add("assets/sfx/extract-fat.mp3");
       list.add("assets/sfx/extract-ok.mp3");
+      list.add("assets/sfx/fail-caught.mp3");
+      list.add("assets/sfx/fail-lost.mp3");
       for (const src of list) {
         const a = new Audio(src);
         a.preload = "auto";
@@ -1178,8 +1180,8 @@
     { img: "assets/meme/poor.jpg", text: "我钱呢……鼠鼠白跑一趟", bgm: null },                                   // C 白跑（合成短音）
   ];
   const FAIL_SHOW = {
-    caught: { img: "assets/meme/cry.jpg", title: "💀 被一脚踢死", text: "流泪鼠鼠头：包撒了一地，只保住安全箱……", bgm: "assets/sfx/extract-ok.mp3", rate: 1.0 },
-    lost: { img: "assets/meme/cry2.jpg", title: "⏱ 迷失禁区", text: "鼠鼠找不到回家的路了……", bgm: null }, // 合成迷失音
+    caught: { img: "assets/meme/cry.jpg", title: "💀 被一脚踢死", text: "流泪鼠鼠头：包撒了一地，只保住安全箱……", bgm: "assets/sfx/fail-caught.mp3", rate: 1.0 }, // 一剪梅（雪花飘飘=凉凉）
+    lost: { img: "assets/meme/cry2.jpg", title: "⏱ 迷失禁区", text: "鼠鼠找不到回家的路了……", bgm: "assets/sfx/fail-lost.mp3", rate: 1.0 }, // 二泉映月（凄凉）
   };
   let celebTimer = 0;
 
@@ -1224,6 +1226,7 @@
     g.className = "celeb-grade" + (grade.g === "C" ? " gC" : "");
     $("#celebText").textContent = `${t.text} —— 带出【${DFR.fmt(value)}】`;
     wireCardButtons(run, {
+      again: true,
       ok: celebTierOf(grade.g) === 2 ? "含泪收下" : true, // 白跑一趟不"收下喜悦"
       goLevels: run.mode === "daily",
       next: run.mode === "levels" && run.level < DFR.LEVELS.length - 1,
@@ -1290,7 +1293,7 @@
       if (st) { st.classList.remove("death"); void st.offsetWidth; st.classList.add("death"); }
       showFailCard("caught");
     } else {
-      Sfx.lost();
+      Sfx.bgmPlay(FAIL_SHOW.lost.bgm, FAIL_SHOW.lost.rate); // 迷失：二泉映月
       showFailCard("lost");
     }
 
