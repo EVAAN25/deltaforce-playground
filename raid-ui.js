@@ -372,6 +372,7 @@
   function checkIdle() {
     const run = Raid.run;
     if (!run || run.status !== "playing" || !Raid.active) return;
+    if (Drag.cur || Raid.joyActive) { Raid.lastAct = performance.now(); return; } // 拖拽/摇杆进行中不算挂机
     if (performance.now() - Raid.lastAct >= IDLE_LIMIT_MS) {
       run.idleLost = true;
       finish("lost");
@@ -420,8 +421,8 @@
         else if (p.i <= 0) { p.i = 0; p.dir = 1; }
         p.x = p.path[p.i].x; p.y = p.path[p.i].y;
       }
-      if (run.extracting) checkExtract(now);
     }
+    if (run.extracting) checkExtract(now); // 引导完成与被看见同 tick：撤离优先
     detect(); // 每 tick 按双方视觉位置判定（红圈画哪就判哪）
     // HUD 秒刷（无倒计时，只刷挂机剩余）
     if (now >= run.nextSec) {
@@ -786,6 +787,7 @@
         started = dragBegin(payload, el, ev, pressOff);
         if (!started) { cleanup(); return; }
       }
+      Raid.lastAct = performance.now(); // 拖拽中持续算操作（防误判挂机）
       dragMove(ev);
     };
     const up = (ev) => {
@@ -1300,6 +1302,7 @@
     run.extracting = 0;
     Sfx.bgmStop();
     hideCelebration();
+    if (Drag.cur) dragAbort(); // 结算瞬间可能在拖拽中，先收场
     updateExtractBar();
     if (Raid.overlay) { Raid.overlay.cancelled = true; Raid.overlay = null; $("#raidOverlay").classList.add("hidden"); Sfx.rustleStop(); }
     closeBag();
@@ -1519,7 +1522,7 @@
       if (!Raid.active || !Raid.run || Raid.run.status !== "playing" || Raid.overlay || Raid.bagOpen) return;
       pid = e.pointerId;
       joy.setPointerCapture(pid);
-      joy.classList.add("active");
+      joy.classList.add("active"); Raid.joyActive = true;
       Raid.run.queue = []; Raid.run.autoSearch = null; // 摇杆接管，清寻路
       const [dx, dy] = vec(e);
       setDir(dx, dy); moveKnob(dx, dy);
@@ -1527,13 +1530,14 @@
     });
     joy.addEventListener("pointermove", (e) => {
       if (pid !== e.pointerId) return;
+      Raid.lastAct = performance.now(); // 摇杆按住持续算操作（防误判挂机）
       const [dx, dy] = vec(e);
       setDir(dx, dy); moveKnob(dx, dy);
     });
     const end = (e) => {
       if (pid !== e.pointerId) return;
       pid = null;
-      joy.classList.remove("active");
+      joy.classList.remove("active"); Raid.joyActive = false;
       const k = Raid.keys;
       k.up = k.down = k.left = k.right = false;
       moveKnob(0, 0);
