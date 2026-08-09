@@ -537,7 +537,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .celeb-card {
   background: var(--card); border: 2px solid var(--g5); border-radius: 18px;
   box-shadow: 0 0 44px 8px rgba(224, 168, 60, .45), var(--shadow-layer);
-  padding: 20px 26px; max-width: 360px; width: 100%; text-align: center;
+  padding: 22px 28px; max-width: 480px; width: 100%; text-align: center;
   animation: celeb-pop .45s cubic-bezier(.2, 1.4, .4, 1) both;
 }
 @keyframes celeb-pop {
@@ -545,12 +545,20 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   70% { transform: scale(1.06) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0deg); }
 }
-.celeb-card img { width: 220px; max-width: 80%; border-radius: 12px; display: block; margin: 0 auto 10px; }
+.celeb-card img { width: 240px; max-width: 80%; border-radius: 12px; display: block; margin: 0 auto 10px; }
 .celeb-card.fail { border-color: var(--g6); box-shadow: 0 0 44px 8px rgba(208, 75, 58, .4), var(--shadow-layer); }
 .celeb-grade { font-size: 44px; font-weight: 900; color: var(--g5); line-height: 1.1; text-shadow: 0 2px 12px rgba(224, 168, 60, .5); }
 .celeb-grade.gC { color: var(--g1); text-shadow: none; }
-.celeb-text { font-size: 15px; font-weight: 700; color: var(--ink); margin: 6px 0 12px; }
-.celeb-card .btn-row { justify-content: center; }
+.celeb-text { font-size: 15px; font-weight: 700; color: var(--ink); margin: 6px 0 14px; }
+/* 弹卡按钮：两列网格，奇数个时最后一个通栏 */
+.celeb-card .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.celeb-card .btn-row .btn { width: 100%; padding: 11px 10px; }
+.celeb-card .btn-row .btn:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  .celeb-card { max-width: 340px; padding: 16px 18px; }
+  .celeb-card img { width: 190px; }
+  .celeb-grade { font-size: 34px; }
+}
 
 /* 关卡选择 */
 .raid-levels { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0 0 14px; }
