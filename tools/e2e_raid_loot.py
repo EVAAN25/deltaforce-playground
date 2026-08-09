@@ -263,6 +263,11 @@ with sync_playwright() as p:
     check("庆祝卡表情包已加载", pg.evaluate("() => { const im = document.querySelector('#celebImg'); return im.complete && im.naturalWidth > 0; }"))
     check("庆祝卡含引导按钮", pg.is_visible("#celebGoLevels"))
     check("成功卡有再来一局", pg.is_visible("#celebAgain"))
+    # 复制分享卡 → toast 压过卡片在最上层
+    pg.click("#celebShare")
+    time.sleep(0.5)
+    check("分享 toast 可见且最上层", pg.is_visible("#toast") and
+          pg.evaluate("() => getComputedStyle(document.querySelector('#toast')).zIndex") == "70")
     pg.click("#celebGoLevels")
     time.sleep(0.5)
     check("点击后切到关卡模式", pg.is_visible("#raidLevels") and pg.evaluate("() => window.DFR_UI.getMode()") == "levels")

@@ -297,7 +297,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .toast {
   position: fixed; left: 50%; top: 14px; transform: translateX(-50%);
   background: var(--bg-deep); color: var(--orange); padding: 10px 20px; border-radius: 999px;
-  font-size: 14px; z-index: 50; box-shadow: var(--shadow-layer);
+  font-size: 14px; z-index: 70; box-shadow: var(--shadow-layer); /* 压过庆祝卡(55)与撒花(60) */
   border: 1px solid var(--orange-deep);
   animation: toast-in .25s ease both;
 }
