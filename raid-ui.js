@@ -79,9 +79,10 @@
       o.start(at); o.stop(at + dur + 0.05);
     }
     // 出货音：真实音频（来自 ItemLevelAndSearchSoundMod，assets/sfx/），按品质分层
+    // 红档 2026-08-09 起用开头10秒加长版V3（reveal-red-v3.mp3），旧版 reveal-red.mp3 保留未删
     const REVEAL_SRC = {
       1: "assets/sfx/reveal-low.mp3", 2: "assets/sfx/reveal-low.mp3", 3: "assets/sfx/reveal-low.mp3",
-      4: "assets/sfx/reveal-purple.mp3", 5: "assets/sfx/reveal-gold.mp3", 6: "assets/sfx/reveal-red.mp3",
+      4: "assets/sfx/reveal-purple.mp3", 5: "assets/sfx/reveal-gold.mp3", 6: "assets/sfx/reveal-red-v3.mp3",
     };
     const revealCache = {};
     function ding(grade) {
@@ -1180,14 +1181,17 @@
     else metaParts.push(`安全箱保住【${DFR.fmt(safeV)}】` + (mainV ? `，背包【${DFR.fmt(mainV)}】喂了猛攻队` : ""));
     if (bestItem) metaParts.push(`最肥一件：${bestItem.name}`);
     const hasNext = run.mode === "levels" && outcome === "extracted" && run.level < DFR.LEVELS.length - 1;
+    const guideLevels = run.mode === "daily" && outcome === "extracted"; // 通关每日一图 → 引导关卡模式
     $("#raidResult").innerHTML = `
       <h2>${titles[outcome]}</h2>
       <p class="r-meta">${metaParts.join(" · ")}</p>
       <p class="r-grade">带出价值【${DFR.fmt(value)}】· 评级 <b>${grade.g}</b> · ${grade.name}</p>
       <p class="r-meta">${dailyRec ? `今日最佳【${DFR.fmt(dailyRec.best)}】 · ` : ""}历史最佳【${DFR.fmt(DF_APP.loadJSON("df_raid_best", 0))}】</p>
+      ${guideLevels ? `<p class="r-guide">每日一图已通关 🎉 关卡模式有四张更大的图（零号大坝 → 航天基地），红更多、巡逻更凶，敢不敢去？</p>` : ""}
       <div class="btn-row">
         <button class="btn" id="raidShareBtn">复制分享卡</button>
         <button class="btn ghost" id="raidAgainBtn">再来一局（${run.mode === "daily" ? "今日同图" : run.mode === "levels" ? "本关同图" : "随机新图"} · 不限次）</button>
+        ${guideLevels ? `<button class="btn" id="raidGoLevelsBtn">去闯关 · 关卡模式 →</button>` : ""}
         ${hasNext ? `<button class="btn" id="raidNextBtn">下一关：${DFR.LEVELS[run.level + 1].name} →</button>` : ""}
       </div>`;
     $("#raidResult").classList.remove("hidden");
@@ -1201,6 +1205,7 @@
       Raid.run = newRun(Raid.mode);
       renderAll();
     };
+    if (guideLevels) $("#raidGoLevelsBtn").onclick = () => setMode("levels");
     if (hasNext) $("#raidNextBtn").onclick = () => {
       Raid.level++;
       Raid.run = null;

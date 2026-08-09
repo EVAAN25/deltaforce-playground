@@ -242,6 +242,21 @@ with sync_playwright() as p:
     check("撒花碎片数量 > 0", pg.evaluate("() => document.querySelectorAll('.confetti-pc').length") > 0)
     check("结算文案=肥肥撤离", "肥肥撤离" in pg.text_content("#raidResult"))
 
+    # 每日一图通关 → 引导关卡模式
+    check("通关引导按钮出现", pg.is_visible("#raidGoLevelsBtn"))
+    pg.click("#raidGoLevelsBtn")
+    time.sleep(0.5)
+    check("点击后切到关卡模式", pg.is_visible("#raidLevels") and pg.evaluate("() => window.DFR_UI.getMode()") == "levels")
+
+    # 红音效加长版 V3 可加载
+    snd = pg.evaluate("""() => new Promise((res) => {
+      const a = new Audio();
+      a.oncanplaythrough = () => res('OK');
+      a.onerror = () => res('FAIL');
+      a.src = 'assets/sfx/reveal-red-v3.mp3';
+    })""")
+    check("红音效 V3 可加载", snd == "OK")
+
     check("全程无 JS 报错", not errors, "; ".join(errors[:3]))
     b.close()
 

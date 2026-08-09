@@ -161,6 +161,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 }
 .result .r-grade { font-size: 15px; margin-bottom: 4px; }
 .result .r-grade b { color: var(--orange); font-size: 20px; }
+.result .r-guide { color: var(--g5); font-size: 14px; font-weight: 700; margin: 10px 0 4px; }
 .result .btn-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
 
 /* 图例 */
