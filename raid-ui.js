@@ -217,7 +217,8 @@
   }
 
   // ---------- 状态 ----------
-  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, bagOpen: false, keys: {}, hover: null, pointer: null, tickTimer: null, rafId: 0 };
+  const Raid = { mode: "daily", level: 0, run: null, active: false, overlay: null, bagOpen: false, keys: {}, hover: null, pointer: null, tickTimer: null, rafId: 0, idleTimer: null, lastAct: 0 };
+  const IDLE_LIMIT_MS = 5 * 60 * 1000; // 挂机 5 分钟无操作自动出局
 
   function newRun(mode) {
     let seed, cfg, level = null, practiceName = null;
@@ -234,10 +235,10 @@
     const map = DFR.generateRaid(seed, LOOT, cfg);
     const introRng = DFG.mulberry32((seed ^ 0x5f3a) >>> 0);
     const now = performance.now();
+    Raid.lastAct = now; // 无倒计时，改挂机 5 分钟无操作自动出局
     return {
       mode, level, seed, map, practiceName,
       solid: DFR.makeSolidFn(map),
-      timeLeft: map.cfg.seconds,
       px: map.spawn.x, py: map.spawn.y,
       vx: map.spawn.x * TS, vy: map.spawn.y * TS,
       queue: [], nextStep: 0, nextNpc: now + DFR.PATROL_STEP_MS, nextSec: now + 1000,
@@ -356,6 +357,7 @@
   // ---------- 主循环 ----------
   function loopStart() {
     if (!Raid.tickTimer) Raid.tickTimer = setInterval(tick, 50);
+    if (!Raid.idleTimer) Raid.idleTimer = setInterval(checkIdle, 5000); // 挂机判定独立于 tick（浮层开着也算无操作）
     if (!Raid.rafId) {
       const frame = () => { draw(); Raid.rafId = requestAnimationFrame(frame); };
       Raid.rafId = requestAnimationFrame(frame);
@@ -363,7 +365,17 @@
   }
   function loopStop() {
     clearInterval(Raid.tickTimer); Raid.tickTimer = null;
+    clearInterval(Raid.idleTimer); Raid.idleTimer = null;
     cancelAnimationFrame(Raid.rafId); Raid.rafId = 0;
+  }
+
+  function checkIdle() {
+    const run = Raid.run;
+    if (!run || run.status !== "playing" || !Raid.active) return;
+    if (performance.now() - Raid.lastAct >= IDLE_LIMIT_MS) {
+      run.idleLost = true;
+      finish("lost");
+    }
   }
 
   function walkBlocked(x, y) {
@@ -411,12 +423,10 @@
       if (run.extracting) checkExtract(now);
     }
     detect(); // 每 tick 按双方视觉位置判定（红圈画哪就判哪）
-    // 倒计时
+    // HUD 秒刷（无倒计时，只刷挂机剩余）
     if (now >= run.nextSec) {
       run.nextSec = now + 1000;
-      run.timeLeft--;
       updateHUD();
-      if (run.timeLeft <= 0) { finish("lost"); return; }
     }
     if (run.extracting) updateExtractBar();
   }
@@ -584,10 +594,11 @@
   function updateHUD() {
     const run = Raid.run;
     if (!run) return;
-    const t = Math.max(0, run.timeLeft);
+    // 无倒计时：⏱ 显示挂机剩余（任何操作重置回 5:00），≤60 秒变红
+    const t = Math.max(0, Math.ceil((IDLE_LIMIT_MS - (performance.now() - Raid.lastAct)) / 1000));
     const timer = $("#raidTimer");
     timer.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
-    timer.classList.toggle("danger", t <= 30);
+    timer.classList.toggle("danger", t <= 60);
     $("#raidValue").textContent = DFR.fmt(DFR.bagValue(run.bagMain) + DFR.bagValue(run.bagSafe));
     $("#raidSearched").textContent = `${run.searched}/${run.containers.length}`;
   }
@@ -1270,9 +1281,9 @@
     $("#celebCard").classList.add("fail");
     $("#celebImg").src = t.img;
     const g = $("#celebGrade");
-    g.textContent = t.title;
+    g.textContent = run.idleLost ? "💤 挂机出局" : t.title;
     g.className = "celeb-grade gC";
-    $("#celebText").textContent = t.text;
+    $("#celebText").textContent = run.idleLost ? "5 分钟没动静，鼠鼠摸鱼被当场抓获……" : t.text;
     wireCardButtons(run, { again: true, goLevels: run.mode === "daily" });
   }
 
@@ -1444,10 +1455,10 @@
       ? "🐭 三步吃肥：<b>①</b> 跑图找发光容器，点它开箱搜货（越亮越值钱）<b>②</b> 躲开猛攻队红圈 <b>③</b> 走到绿色撤离点，点「交互」引导撤离。摇杆移动 · 交互开搜/撤离 · 背包整理。<b>被抓掉光主背包，安全箱永远保住！</b>"
       : "🐭 三步吃肥：<b>①</b> 跑图找发光容器，开箱搜货（转得越久越值钱）<b>②</b> 躲开猛攻队红圈 <b>③</b> 站撤离点按 <b>F</b> 引导撤离。WASD / 点格子移动 · F 开搜/撤离 · Tab 背包。<b>被抓掉光主背包，安全箱永远保住！</b>";
     $("#raidBanner").innerHTML = run.mode === "daily"
-      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图 · 掉落看脸 · 倒计时 ${run.map.cfg.seconds} 秒`
+      ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图 · 掉落看脸 · 无倒计时，挂机 5 分钟自动出局`
       : run.mode === "levels"
-        ? `第 ${run.level + 1} 关 · <b>${DFR.LEVELS[run.level].name}</b> · ${DFR.LEVELS[run.level].desc} · 固定地图 · 倒计时 ${run.map.cfg.seconds} 秒`
-        : `练习模式 · 随机地图（${run.practiceName}规格）· 倒计时 ${run.map.cfg.seconds} 秒 · 不计入每日成绩`;
+        ? `第 ${run.level + 1} 关 · <b>${DFR.LEVELS[run.level].name}</b> · ${DFR.LEVELS[run.level].desc} · 固定地图 · 无倒计时，挂机 5 分钟自动出局`
+        : `练习模式 · 随机地图（${run.practiceName}规格）· 无倒计时，挂机 5 分钟自动出局 · 不计入每日成绩`;
     $("#raidStory").textContent = run.story;
     $("#raidResult").classList.add("hidden");
     $("#raidExtractBar").classList.add("hidden");
@@ -1541,8 +1552,8 @@
   // ---------- 启动 ----------
   bindInput();
   bindTouchUI();
-  window.addEventListener("pointerdown", () => Sfx.unlock()); // 首个手势解锁音频（移动端自动播放限制）
-  window.addEventListener("keydown", () => Sfx.unlock());
+  window.addEventListener("pointerdown", () => { Sfx.unlock(); Raid.lastAct = performance.now(); }); // 首个手势解锁音频 + 记操作
+  window.addEventListener("keydown", () => { Sfx.unlock(); Raid.lastAct = performance.now(); });
   window.addEventListener("pointermove", (e) => { Raid.pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
   // 物品行的 img 默认可拖，会触发浏览器原生 HTML5 拖拽打断 pointer 流——全局拦掉
   document.addEventListener("dragstart", (e) => {

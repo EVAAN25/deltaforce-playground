@@ -283,7 +283,6 @@ with sync_playwright() as p:
       const e = Raid.run.map.extracts[0];
       Raid.run.px = e.x; Raid.run.py = e.y;
       Raid.run.extracting = performance.now() - 99999;
-      Raid.run.timeLeft = 120;
     }""")
     time.sleep(0.4)
     check("撤离结算出现", pg.is_visible("#raidResult"))
@@ -351,6 +350,16 @@ with sync_playwright() as p:
     pg.click("#celebGoLevels")
     time.sleep(0.5)
     check("失败卡去闯关切关卡模式", pg.evaluate("() => window.DFR_UI.getMode()") == "levels")
+
+    # 挂机 5 分钟无操作自动出局（无倒计时）
+    pg.evaluate("() => { window.DFR_UI.setMode('daily'); }")
+    time.sleep(0.5)
+    pg.evaluate("() => { window.DFR_UI._raid.lastAct = performance.now() - 6 * 60 * 1000; }")
+    for _ in range(24):
+        if pg.evaluate("() => window.DFR_UI._raid.run.status") != "playing": break
+        time.sleep(0.5)
+    check("挂机超时自动出局", pg.evaluate("() => window.DFR_UI._raid.run.status") == "lost")
+    check("挂机失败卡文案", "挂机" in pg.text_content("#celebGrade"))
 
     check("全程无 JS 报错", not errors, "; ".join(errors[:3]))
     b.close()
