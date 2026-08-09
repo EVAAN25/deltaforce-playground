@@ -1253,6 +1253,10 @@
     const cv = canvas();
     cv.width = run.map.w * TS;
     cv.height = run.map.h * TS;
+    // 顶部新手引导（按设备给对应操作口径）
+    $("#raidHowto").innerHTML = IS_COARSE
+      ? "🐭 三步吃肥：<b>①</b> 跑图找发光容器，点它开箱搜货（越亮越值钱）<b>②</b> 躲开红圈巡逻队 <b>③</b> 走到绿色撤离点，点「交互」引导撤离。摇杆移动 · 交互开搜/撤离 · 背包整理。<b>被抓掉光主背包，安全箱永远保住！</b>"
+      : "🐭 三步吃肥：<b>①</b> 跑图找发光容器，开箱搜货（转得越久越值钱）<b>②</b> 躲开红圈巡逻队 <b>③</b> 站撤离点按 <b>F</b> 引导撤离。WASD / 点格子移动 · F 开搜/撤离 · Tab 背包。<b>被抓掉光主背包，安全箱永远保住！</b>";
     $("#raidBanner").innerHTML = run.mode === "daily"
       ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图 · 掉落看脸 · 倒计时 ${run.map.cfg.seconds} 秒`
       : run.mode === "levels"

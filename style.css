@@ -345,6 +345,12 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   background: var(--card); border: 1px dashed var(--line); border-radius: var(--radius-sm);
   padding: 8px 12px; margin: 0 0 12px;
 }
+.raid-howto {
+  font-size: 14px; color: var(--ink); line-height: 1.8; text-align: center;
+  background: var(--card); border: 1px solid var(--orange-deep); border-radius: var(--radius);
+  padding: 10px 14px; margin: 0 0 12px; box-shadow: var(--shadow-card);
+}
+.raid-howto b { color: var(--orange); }
 .raid-hud {
   display: flex; justify-content: center; gap: 22px; flex-wrap: wrap;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);

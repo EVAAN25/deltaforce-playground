@@ -24,6 +24,7 @@ with sync_playwright() as p:
     time.sleep(1.2)
 
     check("触屏操控条显示", pg.evaluate("() => getComputedStyle(document.querySelector('#raidTouchUI')).display") == "flex")
+    check("顶部新手引导（触屏口径）", "摇杆" in pg.text_content("#raidHowto") and "安全箱" in pg.text_content("#raidHowto"))
     check("摇杆/按钮可见", pg.is_visible("#raidJoy") and pg.is_visible("#raidBtnF") and pg.is_visible("#raidBtnBag"))
     check("提示语为触屏版", "摇杆" in pg.text_content("#raidTip") or "交互" in pg.text_content("#raidTip"))
     check("容器格尺寸走 --rpcell(34px)", pg.evaluate("() => getComputedStyle(document.documentElement).getPropertyValue('--rpcell').trim()") == "34px")
