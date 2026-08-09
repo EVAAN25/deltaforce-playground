@@ -79,10 +79,10 @@
       o.start(at); o.stop(at + dur + 0.05);
     }
     // 出货音：真实音频（来自 ItemLevelAndSearchSoundMod，assets/sfx/），按品质分层
-    // 红档 2026-08-09 起用开头10秒加长版V3（reveal-red-v3.mp3），旧版 reveal-red.mp3 保留未删
+    // 红档用加长版V3的前半段（reveal-red-v3-half.mp3，5.6s 带淡出）；完整版 v3 与旧版 reveal-red.mp3 均保留
     const REVEAL_SRC = {
       1: "assets/sfx/reveal-low.mp3", 2: "assets/sfx/reveal-low.mp3", 3: "assets/sfx/reveal-low.mp3",
-      4: "assets/sfx/reveal-purple.mp3", 5: "assets/sfx/reveal-gold.mp3", 6: "assets/sfx/reveal-red-v3.mp3",
+      4: "assets/sfx/reveal-purple.mp3", 5: "assets/sfx/reveal-gold.mp3", 6: "assets/sfx/reveal-red-v3-half.mp3",
     };
     const revealCache = {};
     function ding(grade) {

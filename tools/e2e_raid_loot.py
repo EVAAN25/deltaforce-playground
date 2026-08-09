@@ -269,7 +269,7 @@ with sync_playwright() as p:
       const a = new Audio();
       a.oncanplaythrough = () => res('OK');
       a.onerror = () => res('FAIL');
-      a.src = 'assets/sfx/reveal-red-v3.mp3';
+      a.src = 'assets/sfx/reveal-red-v3-half.mp3';
     })""")
     check("红音效 V3 可加载", snd == "OK")
 
