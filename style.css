@@ -507,6 +507,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   border-radius: 6px; transform: translate(-50%, -50%) scale(1.05);
   box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
 }
+.drag-ghost { z-index: 99 !important; } /* 压过 .rp-item.revealed 的 z-index:2，否则容器格幽灵垫在浮层下看不见 */
 .drag-ghost img, .drag-ghost .rit-fb { width: 60%; max-height: 55%; object-fit: contain; }
 .drag-ghost.rot img { transform: rotate(90deg); } /* 拖动中按 R 横竖切换 */
 .bag-grid.drop-ok { border-color: var(--green, #5fae63); box-shadow: 0 0 0 2px rgba(95, 174, 99, .55); }

@@ -323,14 +323,15 @@
       ctx.arc(s.x * TS + TS / 2, s.y * TS + TS / 2, 3, 0, Math.PI * 2);
       ctx.fill();
     }
-    // 巡逻队 + 视野
+    // 猛攻队 + 视野（红圈=真实判定区：圈内且视线通畅时变亮警示）
     for (const p of run.patrols) {
-      ctx.fillStyle = "rgba(207,106,85,.10)";
+      const sees = patrolSeesPlayer(run, p);
+      ctx.fillStyle = sees ? "rgba(224,60,45,.22)" : "rgba(207,106,85,.10)";
       ctx.beginPath();
       ctx.arc(p.vx + TS / 2, p.vy + TS / 2, p.radius * TS, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(207,106,85,.35)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = sees ? "rgba(224,60,45,.8)" : "rgba(207,106,85,.35)";
+      ctx.lineWidth = sees ? 2 : 1;
       ctx.stroke();
       ctx.fillStyle = "#cf6a55";
       ctx.beginPath();
@@ -398,7 +399,7 @@
         }
       }
     }
-    // 巡逻队
+    // 猛攻队
     if (now >= run.nextNpc) {
       run.nextNpc = now + DFR.PATROL_STEP_MS;
       for (const p of run.patrols) {
@@ -407,9 +408,9 @@
         else if (p.i <= 0) { p.i = 0; p.dir = 1; }
         p.x = p.path[p.i].x; p.y = p.path[p.i].y;
       }
-      detect();
       if (run.extracting) checkExtract(now);
     }
+    detect(); // 每 tick 按双方视觉位置判定（红圈画哪就判哪）
     // 倒计时
     if (now >= run.nextSec) {
       run.nextSec = now + 1000;
@@ -453,12 +454,17 @@
       Math.abs(c.x - run.px) + Math.abs(c.y - run.py) === 1) || null;
   }
 
+  // 猛攻队是否看见玩家：视野半径（双方视觉位置，与红圈一致）+ 视线无遮挡（逻辑格）
+  function patrolSeesPlayer(run, p) {
+    const d = Math.hypot(run.vx - p.vx, run.vy - p.vy) / TS;
+    return d <= p.radius && DFR.losClear(run.solid, p.x, p.y, run.px, run.py);
+  }
+
   function detect() {
     const run = Raid.run;
     if (run.status !== "playing") return;
     for (const p of run.patrols) {
-      const d = Math.hypot(run.px - p.x, run.py - p.y);
-      if (d <= p.radius && DFR.losClear(run.solid, p.x, p.y, run.px, run.py)) {
+      if (patrolSeesPlayer(run, p)) {
         finish("caught");
         return;
       }
@@ -1414,8 +1420,8 @@
     cv.height = run.map.h * TS;
     // 顶部新手引导（按设备给对应操作口径）
     $("#raidHowto").innerHTML = IS_COARSE
-      ? "🐭 三步吃肥：<b>①</b> 跑图找发光容器，点它开箱搜货（越亮越值钱）<b>②</b> 躲开红圈巡逻队 <b>③</b> 走到绿色撤离点，点「交互」引导撤离。摇杆移动 · 交互开搜/撤离 · 背包整理。<b>被抓掉光主背包，安全箱永远保住！</b>"
-      : "🐭 三步吃肥：<b>①</b> 跑图找发光容器，开箱搜货（转得越久越值钱）<b>②</b> 躲开红圈巡逻队 <b>③</b> 站撤离点按 <b>F</b> 引导撤离。WASD / 点格子移动 · F 开搜/撤离 · Tab 背包。<b>被抓掉光主背包，安全箱永远保住！</b>";
+      ? "🐭 三步吃肥：<b>①</b> 跑图找发光容器，点它开箱搜货（越亮越值钱）<b>②</b> 躲开猛攻队红圈 <b>③</b> 走到绿色撤离点，点「交互」引导撤离。摇杆移动 · 交互开搜/撤离 · 背包整理。<b>被抓掉光主背包，安全箱永远保住！</b>"
+      : "🐭 三步吃肥：<b>①</b> 跑图找发光容器，开箱搜货（转得越久越值钱）<b>②</b> 躲开猛攻队红圈 <b>③</b> 站撤离点按 <b>F</b> 引导撤离。WASD / 点格子移动 · F 开搜/撤离 · Tab 背包。<b>被抓掉光主背包，安全箱永远保住！</b>";
     $("#raidBanner").innerHTML = run.mode === "daily"
       ? `今日地图 <b>#${DF_APP.TODAY}</b> · 全站同图 · 掉落看脸 · 倒计时 ${run.map.cfg.seconds} 秒`
       : run.mode === "levels"
