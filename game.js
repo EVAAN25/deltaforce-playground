@@ -10,7 +10,7 @@
   "use strict";
 
   const SITE_NAME = "三角洲行动游乐场";
-  const SITE_URL = "https://evaan25.github.io/deltaforce-playground/";
+  const SITE_URL = "http://komozyw.com/df/"; // 国内可达主站（.io 需翻墙，分享卡一律带 komozyw）
 
   // ---------- 随机与每日种子 ----------
 

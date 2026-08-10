@@ -2,7 +2,7 @@
 
 非官方《三角洲行动》（Delta Force）粉丝同人小游戏站，纯静态单页应用，无需构建，打开即玩。
 
-**在线地址：https://evaan25.github.io/deltaforce-playground/**
+**在线地址：http://komozyw.com/df/ （摸金直达 /df/raid）· 备用 https://evaan25.github.io/deltaforce-playground/（需翻墙）**
 
 ## 玩法
 

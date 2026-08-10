@@ -7,6 +7,15 @@ from playwright.sync_api import sync_playwright
 URL = "http://localhost:8931/#/raid"
 fails = []
 
+
+def wait_meme(pg, timeout=4.0):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if pg.evaluate("() => { const im = document.querySelector('#celebImg'); return im.complete && im.naturalWidth > 0; }"):
+            return True
+        time.sleep(0.3)
+    return False
+
 def check(name, cond, extra=""):
     print(("✓ " if cond else "✗ ") + name + (f"  [{extra}]" if extra else ""))
     if not cond:
@@ -292,7 +301,7 @@ with sync_playwright() as p:
 
     # 每日一图通关 → 庆祝卡（表情包弹卡）+ 引导关卡模式
     check("庆祝卡弹出", pg.is_visible("#raidCeleb"))
-    check("庆祝卡表情包已加载", pg.evaluate("() => { const im = document.querySelector('#celebImg'); return im.complete && im.naturalWidth > 0; }"))
+    check("庆祝卡表情包已加载", wait_meme(pg))
     check("庆祝卡含引导按钮", pg.is_visible("#celebGoLevels"))
     check("成功卡有再来一局", pg.is_visible("#celebAgain"))
     # 复制分享卡 → toast 压过卡片在最上层
@@ -327,7 +336,7 @@ with sync_playwright() as p:
         time.sleep(0.3)
     check("被抓失败卡弹出", pg.is_visible("#raidCeleb"))
     check("失败卡标题", "被一脚踢死" in pg.text_content("#celebGrade"))
-    check("失败卡表情包已加载", pg.evaluate("() => { const im = document.querySelector('#celebImg'); return im.complete && im.naturalWidth > 0; }"))
+    check("失败卡表情包已加载", wait_meme(pg))
     check("失败卡有分享/再来一局", pg.is_visible("#celebShare") and pg.is_visible("#celebAgain"))
     check("关卡模式失败卡无去闯关", pg.evaluate("() => !document.querySelector('#celebGoLevels')"))
     pg.click("#celebAgain")

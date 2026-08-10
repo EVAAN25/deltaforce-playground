@@ -522,7 +522,7 @@
       `📦 搜刮 ${searched}/${total} · 评级 ${grade.g}·${grade.name}`,
     ];
     if (bestItemName) lines.push(`🧀 最肥一件：${bestItemName}`);
-    lines.push(DFG.SITE_URL);
+    lines.push(DFG.SITE_URL.replace(/\/$/, "") + "/raid"); // 摸金分享卡带专路由直达
     return lines.join("\n");
   }
 
