@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 部署三角洲行动游乐场到 182（http://182.254.155.14/df/ 与 https://komozyw.com/df/）
+# 部署三角洲行动游乐场到 182（https://komozyw.com/df/；2026-08-11 起 nginx 由同事配了 HTTPS，
+# IP 直连 http://182.254.155.14/df/ 已 404 失效，自检走 komozyw 域名）
 # 用法：bash tools/deploy_182.sh
 # 前置（已配好，一次性的）：
 #   - 182 /var/www/df/ 属主 ubuntu（sudo mkdir + chown）
@@ -12,6 +13,6 @@ HOST="ubuntu@182.254.155.14"
 rsync -az --delete -e "ssh -i $KEY" \
   --exclude=.git --exclude=_wip_raid --exclude=tools --exclude=test.js --exclude=task.md \
   ./ "$HOST:/var/www/df/"
-curl -sf -o /dev/null -w "182 /df/ 自检 HTTP %{http_code}\n" "http://182.254.155.14/df/"
-curl -sf -o /dev/null -w "182 /df/ 贴图自检 HTTP %{http_code}\n" "http://182.254.155.14/df/assets/props/p_15080040001.png"
-echo "部署完成：http://182.254.155.14/df/  https://komozyw.com/df/"
+curl -sf -o /dev/null -w "komozyw /df/ 自检 HTTP %{http_code}\n" "https://komozyw.com/df/"
+curl -sf -o /dev/null -w "komozyw /df/ 贴图自检 HTTP %{http_code}\n" "https://komozyw.com/df/assets/props/p_15080040001.png"
+echo "部署完成：https://komozyw.com/df/"
