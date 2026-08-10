@@ -1,6 +1,6 @@
 # 数据管线与数据源说明
 
-本目录存放可重跑的数据管线。结论先行：**枪械 = 官方图鉴快照（df-api，2024-12）合并 GTI 数据库（gtidb.com）的较新平衡数值与新增枪械，共 50 把；配件 = 官方图鉴快照（jiansenc，2024-12）392 件，无可用更新源；收集品 = 官方图鉴快照 253 件 + 三角洲数据帝真实交易行价（开源快照 2026-01-10，可 token 刷新）；图片素材来自官方 CDN。拿不到更新的维度见文末「现状与缺口」，不编造任何数值。**
+本目录存放可重跑的数据管线。结论先行：**枪械 = 官方图鉴快照（df-api，2024-12）合并 GTI 数据库（gtidb.com）的较新平衡数值与新增枪械，共 50 把；配件 = 官方图鉴快照（jiansenc，2024-12）392 件，无可用更新源；收集品 = 官方图鉴快照 253 件 + 三角洲数据帝/小涛查真实交易行价（物品单格价值榜 orzice.com/v/item_jz，2026-08-10 抓取，`scrape_item_jz.py` 可刷新，也可 token 走实时接口）；图片素材来自官方 CDN。拿不到更新的维度见文末「现状与缺口」，不编造任何数值。**
 
 ## 数据源调研结论（初版 2026-08-05，更新调研 2026-08-06）
 
@@ -13,7 +13,8 @@
 | gtidb 伤害模型 | https://gtidb.com/calculator/dps.html 引用的 `assets/chunks/damages.*.js` | 每枪伤害衰减模型，含 `bulletType`（弹种） | `baseDamage/armorDamage/fireRate/damageFalloffs/bulletType/triggerDelay` | 用于给 3 把新枪定口径（已用已知枪校验映射：AKM→7.62x39、M4A1→5.56、VSS→9x39 均吻合） |
 | jiansenc/DeltaForceData | https://github.com/jiansenc/DeltaForceData | 配件 9 大类 + 收集品静态 JSON（`public/json/acc/*.json`、`props/collection.json`） | 配件：`objectID / objectName / secondClassCN(部位) / grade / weight / pic / accDetail{ 数值加成 + advantage/disadvantage 效果文本 }`；收集品：`objectName / grade / 尺寸(len×wid) / 类别 / 产出地图 / desc` | 配件 **392 件** + 收集品 **253 件**（官方图鉴快照 2024-12，仓库停更） |
 | 官方图片 CDN | `https://playerhub.df.qq.com/playerhub/60004/object/p_{objectID}.png` | 枪械/配件/干员图片 | 300×150 PNG（`p_` 前缀小图）/ 1200×600 大图 | 全量可用，新枪图片按 objectID 补抓成功 |
-| 三角洲数据帝 价格开源快照 | https://github.com/orzice/DeltaForcePrice（`price.json`） | 真实交易行价格 | `{name, price, secondClassCN, is_get_time}` | 1246 条全物品（含收集品 316 条、枪械 60 把、配件 514 件），**2026-01-10 停更**；摸金玩法 253 件收集品命中 240 件 |
+| 三角洲数据帝 价格开源快照 | https://github.com/orzice/DeltaForcePrice（`price.json`） | 真实交易行价格 | `{name, price, secondClassCN, is_get_time}` | 1246 条全物品（含收集品 316 条、枪械 60 把、配件 514 件），**2026-01-10 停更**；现为兜底价格源 |
+| 小涛查 物品单格价值榜 | https://orzice.com/v/item_jz（接口 `/api/xtc/item_jz_list`，响应 AES 加密） | 实时交易行总价 + 单格价值 | `{name, grade, price, dgjz(单格价值), wh(格数), oid}` | 374 件全物品实时价，2026-08-10 起为**默认价格源**；接口加密不逆向，用 `tools/scrape_item_jz.py`（Playwright 读页面 Vue 实例解密后的数据）抓取 |
 
 **枪械合并规则**（`tools/build_data.js`）：同 objectID 的枪以 gtidb 的数值/类型/开火模式覆盖快照（gtidb 更新、跟随平衡补丁）；口径/描述/重量保留官方图鉴快照；gtidb 独有的枪整枪采用 gtidb 数据，口径取自 gtidb 伤害模型的 bulletType（同站来源），描述暂缺（空串，UI 已做降级）。
 
@@ -31,7 +32,7 @@
 ### 现状与缺口（截至 2026-08-06）
 
 - **枪械数值已更新到 gtidb 当前版本**（2026-08-06 抓取）：47 把老枪全部刷新为较新平衡值（如 M4A1 伤害 27→31），新增 3 把带完整属性的枪。
-- **收集品价格已接入真实交易行数据**（数据帝开源快照 2026-01-10）：240/253 件可交易物品参与摸金玩法出题；13 件不可交易物品（火箭燃料等）保留图鉴字段但不参与出题。如需更新到当日价格：按上文步骤在 orzice.com/work 控制台开通服务拿 token 后跑 `ORZICE_TOKEN=xxx node tools/build_loot.js`。
+- **收集品价格已刷新为小涛查物品单格价值榜**（orzice.com/v/item_jz，2026-08-10 抓取 374 件实时交易行价，`python3 tools/scrape_item_jz.py` 可随时重抓）：240/253 件可交易物品参与摸金玩法出题；13 件不可交易物品（火箭燃料等）保留图鉴字段但不参与出题。如需分钟级实时价：按上文步骤在 orzice.com/work 控制台开通服务拿 token 后跑 `ORZICE_TOKEN=xxx node tools/build_loot.js`。
 - **2025-2026 赛季新枪（约 10-15 把）**：数据帝价格快照侧证 2026-01 枪械名录 60 把，我们题库（50 把）缺 **K437突击步枪 / KC17突击步枪 / MK47突击步枪 / MK4冲锋枪 / QCQ171冲锋枪 / QJB201轻机枪 / SR9射手步枪 / 725双管霰弹枪 / 复合弓 / 杠杆式步枪**（另 S9-S10 的 RM277/SVCH/M82/MCX LT/AR57 更晚，见配装站改枪码）；但任何可及来源都没有这些枪的官方图鉴格式完整数值 → **不入库、不编造**。
 - **配件**：属性停留在官方图鉴快照 2024-12（392 件）；数据帝快照显示 2026-01 配件已达 514 件，但只有名称+价格、无 accDetail 数值 → 无法更新改枪大师题库。
 - **枪械↔配件逐个兼容表**：数据帝平台不提供该数据（其接口为物价/卡战备/改枪码，改枪码为不透明字符串无解码文档），其余公开渠道亦无 → 改枪玩法的兼容判断形态（「这件配件能装上哪把枪」）仍无法落地。
@@ -42,7 +43,10 @@
 node tools/build_data.js     # 抓取上游 → 合并 → data/weapons.js + data/attachments.js
 node tools/fetch_assets.js   # 按 data/*.js 的图片清单从官方 CDN 下载 → assets/guns/ + assets/acc/
 node tools/build_loot.js     # 收集品（253 件）+ 数据帝真实交易行价 → data/loot.js
-                             #   默认用开源快照（2026-01-10）；ORZICE_TOKEN=xxx 前缀则拉实时接口
+                             #   价格源优先级：ORZICE_TOKEN=xxx 实时接口
+                             #   > tools/data/item_jz.json（默认，小涛查物品单格价值榜，
+                             #     python3 tools/scrape_item_jz.py 刷新，需 py playwright）
+                             #   > GitHub 开源快照（2026-01-10 停更，兜底）
 node tools/fetch_props.js    # 收集品图片 → assets/props/
 ```
 

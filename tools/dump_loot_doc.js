@@ -16,7 +16,7 @@ const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const L = [];
 L.push("# 鼠鼠摸金 · 掉落与物品数据库");
 L.push("");
-L.push(`> 生成时间 ${new Date().toISOString().slice(0, 10)} · 数据源见 data/loot.js 头部（物品=官方图鉴快照，价格=数据帝交易行快照 ${LOOT.meta.priceDate}，爆率=同人自设非官方）。`);
+L.push(`> 生成时间 ${new Date().toISOString().slice(0, 10)} · 数据源见 data/loot.js 头部（物品=官方图鉴快照，价格=${LOOT.meta.priceSource} ${LOOT.meta.priceDate}，爆率=同人自设非官方）。`);
 L.push(`> 重新生成：仓库根目录跑 \`node tools/dump_loot_doc.js\``);
 L.push("");
 L.push("## 一、容器爆率（每件物品独立按此 roll 品质，再从该品质池等概抽一件）");

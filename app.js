@@ -650,9 +650,9 @@
     LootDuel.practice = { statKey: q.statKey, leftId: q.leftId, rightId: q.rightId, streak: 0, trail: [], status: "playing" };
   }
 
-  // 价格来源说明（快照日期随管线重跑自动更新）
+  // 价格来源说明（来源与日期随管线重跑自动更新）
   function lootPriceNoteHTML() {
-    const when = LOOT_META.priceLive ? "实时接口" : `快照 ${LOOT_META.priceDate || "未知"}（开源库已停更）`;
+    const when = LOOT_META.priceLive ? "实时接口" : `数据日期 ${LOOT_META.priceDate || "未知"}`;
     return `价格来源：三角洲数据帝（orzice.com）真实交易行数据 · ${when}；物品名称 / 品质 / 尺寸 / 类型 / 产出地图来自官方图鉴快照（2024-12）。`;
   }
 

@@ -3,11 +3,13 @@
  * 数据管线：摸金玩法（收集品）数据
  *  物品 = jiansenc/DeltaForceData 官方图鉴快照 props/collection.json（253 件收集品：
  *         名称/品质/格数/类别/产出地图/描述/官方图鉴图，均为真实图鉴数据）
- *  价值 = 三角洲数据帝（orzice.com）真实交易行价格：
- *         - 默认拉开源快照 orzice/DeltaForcePrice（price.json，2026-01-10 停更）
- *         - 设环境变量 ORZICE_TOKEN 则改拉线上实时接口 /v1/sjz_api/item_price_all
+ *  价值 = 三角洲数据帝（orzice.com）真实交易行价格，优先级：
+ *         - 设环境变量 ORZICE_TOKEN → 线上实时接口 /v1/sjz_api/item_price_all
  *           （高频1分钟/中频5分钟/低频10分钟更新；token 需在 orzice.com/work 控制台
  *            QQ 登录后开通服务获取，切勿提交进仓库）
+ *         - 默认 → 本地 tools/data/item_jz.json：小涛查「物品单格价值」榜
+ *           （orzice.com/v/item_jz，374 件实时交易行价，python3 tools/scrape_item_jz.py 刷新）
+ *         - 兜底 → 开源快照 orzice/DeltaForcePrice（price.json，2026-01-10 停更）
  *  容器/掉落权重 = 同人自设玩法数值（仅供 WIP 的 2D 摸金撤离玩法使用，见 ../_wip_raid）
  * 输出浏览器直引的 data/loot.js。无第三方依赖，Node >= 18。
  * 用法：node tools/build_loot.js   或   ORZICE_TOKEN=xxx node tools/build_loot.js
@@ -30,17 +32,26 @@ async function fetchJson(url) {
 }
 
 // ---------- 价格源 ----------
-// 统一成 { byName: Map<name, {price, time}>, live: bool, date: "YYYY-MM-DD" }
+// 优先级：ORZICE_TOKEN 实时接口 > 本地 item_jz.json（小涛查物品单格价值榜，默认）> GitHub 开源快照
+// 统一成 { byName: Map<name, {price, time}>, live: bool, date: "YYYY-MM-DD", channel: string }
+const LOCAL_ITEM_JZ = path.join(ROOT, "tools", "data", "item_jz.json");
+
 async function fetchPrices() {
   const token = process.env.ORZICE_TOKEN;
   if (token) {
     const raw = await fetchJson(`${PRICE_LIVE}?token=${encodeURIComponent(token)}`);
     const list = Array.isArray(raw) ? raw : raw.data;
     if (!Array.isArray(list)) throw new Error("实时价格接口返回结构异常: " + JSON.stringify(raw).slice(0, 200));
-    return packPrices(list, true);
+    return { ...packPrices(list, true), channel: "live" };
+  }
+  if (fs.existsSync(LOCAL_ITEM_JZ)) {
+    const raw = JSON.parse(fs.readFileSync(LOCAL_ITEM_JZ, "utf8"));
+    const packed = packPrices(raw.items, false);
+    packed.date = raw.date; // 榜单抓取日期（scrape_item_jz.py 写入）
+    return { ...packed, channel: "item_jz" };
   }
   const list = await fetchJson(PRICE_SNAPSHOT);
-  return packPrices(list, false);
+  return { ...packPrices(list, false), channel: "snapshot" };
 }
 
 function packPrices(list, live) {
@@ -56,6 +67,12 @@ function packPrices(list, live) {
     : "未知";
   return { byName, live, date, total: byName.size };
 }
+
+const PRICE_SOURCE_NAME = {
+  live: "三角洲数据帝（orzice.com）实时交易行 API",
+  item_jz: "三角洲数据帝/小涛查「物品单格价值」榜（orzice.com/v/item_jz）",
+  snapshot: "三角洲数据帝（orzice.com）交易行价格开源快照（orzice/DeltaForcePrice，已停更）",
+};
 
 // ---- 容器表（游戏真实容器；尺寸/档位参考小涛查前端常量）----
 // tier: 6=顶级容器 5=高级容器 1=低级容器
@@ -150,9 +167,7 @@ const DROP_WEIGHTS = {
   }
 
   const meta = {
-    priceSource: prices.live
-      ? "三角洲数据帝（orzice.com）实时交易行 API"
-      : "三角洲数据帝（orzice.com）交易行价格开源快照（orzice/DeltaForcePrice，已停更）",
+    priceSource: PRICE_SOURCE_NAME[prices.channel],
     priceDate: prices.date,
     priceLive: prices.live,
     itemCount: items.length,
