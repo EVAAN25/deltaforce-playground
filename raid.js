@@ -1,8 +1,9 @@
 /*
  * 鼠鼠摸金 —— 纯逻辑层（UMD：浏览器挂 window.DFR，node 可 require）
  * 不依赖 DOM；依赖 game.js 的 DFG（hash32 / mulberry32 / shuffle）与 data/loot.js 的数据（由调用方传入）
- * 物品价值为三角洲数据帝真实交易行价（见 data/loot.js meta）；品质权重为同人自设玩法数值，非官方概率；
- * 容器产出池（哪些容器能出哪些类别/品质上限）按小涛查开容器模拟器采样校准（2026-08-10，见 tools/build_loot.js 容器表）。
+ * 物品价值为三角洲数据帝真实交易行价（见 data/loot.js meta）；掉落概率以小涛查开容器模拟器
+ * 服务端接口实测采样（2026-08-10，24 容器×2000 开）为基准、按品质小幅上浮（GRADE_BOOST），非官方概率；
+ * 容器产出池（哪些容器能出哪些类别/品质上限）同采样校准（见 tools/build_loot.js 容器表）。
  * 未定价物品（value 为 null）不进掉落池（rollContainer 已过滤）。
  */
 (function (root, factory) {
@@ -224,7 +225,7 @@
       }
       if (!spot) return null;
       taken.add(spot.x + "," + spot.y);
-      containers.push({ cid: def.id, name: def.name, tier: def.tier, w: def.w, h: def.h, types: def.types, maxGrade: def.maxGrade, x: spot.x, y: spot.y });
+      containers.push({ cid: def.id, name: def.name, tier: def.tier, w: def.w, h: def.h, types: def.types, maxGrade: def.maxGrade, rates: def.rates, avgDrops: def.avgDrops, x: spot.x, y: spot.y });
     }
 
     const containerAt = new Set(containers.map((c) => c.x + "," + c.y));
@@ -333,43 +334,73 @@
   }
 
   /*
-   * 开容器现场 roll 掉落：件数 ≈ w*h/3 ± 抖动（至少 1、不超过格数）；
-   * 每件先按容器 tier 的品质权重 roll 品质，再从该品质能放进容器、且属于该容器
-   * 产出池（cont.types 物品类别约束、cont.maxGrade 品质上限，2026-08-10 起按小涛查
-   * 模拟器采样校准，见 tools/build_loot.js 容器表注释）的物品池等概 roll；
-   * 无适配物品的品质会从权重里剔除后重归一（不再空 roll）。
+   * 开容器现场 roll 掉落。
+   * 有实测权重的容器（cont.rates，2026-08-10 起按小涛查模拟器服务端接口 24 容器×2000 开
+   * 采样）：件数 ≈ 实测平均每开件数 ±1；每件从池内按「实测次数 × GRADE_BOOST 品质上浮」
+   * 加权抽取（我们图鉴没有的物品——枪/弹药/新收集品——不进池，权重自然归零）。
+   * 无采样容器回退老逻辑：tier 品质权重 roll 品质，再从该品质且属于产出池的物品等概抽。
    * 返回已装箱的 [{item, x, y, w, h}]（摆不下的会放弃该件，保证至少 1 件）。
    */
+  // 品质上浮系数：在实测基准上小幅提高高品爆率（用户拍板 2026-08-10）
+  const GRADE_BOOST = { 1: 1, 2: 1, 3: 1.05, 4: 1.15, 5: 1.4, 6: 1.8 };
+
   function rollContainer(rng, cont, loot) {
     const cells = cont.w * cont.h;
-    let count = Math.round(cells / 3) + (Math.floor(rng() * 5) - 2);
+    let count = cont.avgDrops
+      ? Math.round(cont.avgDrops + (rng() * 2 - 1))
+      : Math.round(cells / 3) + (Math.floor(rng() * 5) - 2);
     count = Math.max(1, Math.min(cells, count));
-    const weights = loot.dropWeights[cont.tier];
     const inPool = (it) =>
       it.value != null &&
       fitsPossible(it, cont.w, cont.h) &&
       (!cont.types || cont.types.includes(it.type)) &&
       (!cont.maxGrade || it.grade <= cont.maxGrade);
-    // 按品质预分池，并重归一权重（池为空的品质不再占用权重）
-    const pools = {};
-    const effWeights = {};
-    for (const g of [1, 2, 3, 4, 5, 6]) {
-      if (cont.maxGrade && g > cont.maxGrade) continue;
-      const pool = loot.items.filter((it) => it.grade === g && inPool(it));
-      if (pool.length && (weights[g] || 0) > 0) { pools[g] = pool; effWeights[g] = weights[g]; }
-    }
     const occ = makeGrid(cont.w, cont.h, 0);
     const placed = [];
     let guard = 0;
-    while (placed.length < count && guard++ < 200) {
-      const grade = weightedGrade(effWeights, rng);
-      const pool = pools[grade];
-      if (!pool || !pool.length) continue;
-      // 同品质重试 3 次：大件摆不下会稀释高品质占比，多抽几件同品质的再放弃
-      for (let t = 0; t < 3; t++) {
-        const item = pool[Math.floor(rng() * pool.length)];
-        const pos = packFirstFit(occ, cont.w, cont.h, item.len, item.wid, true);
-        if (pos) { placed.push({ item, x: pos.x, y: pos.y, w: pos.w, h: pos.h }); break; }
+
+    if (cont.rates) {
+      // 逐物品加权池：实测次数 × 品质上浮
+      const byId = new Map(loot.items.map((it) => [it.name, it]));
+      const pool = [];
+      let wsum = 0;
+      for (const [name, cnt] of Object.entries(cont.rates)) {
+        const it = byId.get(name);
+        if (!it || !inPool(it)) continue;
+        const w = cnt * (GRADE_BOOST[it.grade] || 1);
+        pool.push({ it, w });
+        wsum += w;
+      }
+      while (placed.length < count && guard++ < 200 && wsum > 0) {
+        // 摆不下重试 3 次再放弃该件
+        for (let t = 0; t < 3; t++) {
+          let r = rng() * wsum;
+          let pick = pool[pool.length - 1].it;
+          for (const p of pool) { r -= p.w; if (r <= 0) { pick = p.it; break; } }
+          const pos = packFirstFit(occ, cont.w, cont.h, pick.len, pick.wid, true);
+          if (pos) { placed.push({ item: pick, x: pos.x, y: pos.y, w: pos.w, h: pos.h }); break; }
+        }
+      }
+    } else {
+      const weights = loot.dropWeights[cont.tier];
+      // 按品质预分池，并重归一权重（池为空的品质不再占用权重）
+      const pools = {};
+      const effWeights = {};
+      for (const g of [1, 2, 3, 4, 5, 6]) {
+        if (cont.maxGrade && g > cont.maxGrade) continue;
+        const pool = loot.items.filter((it) => it.grade === g && inPool(it));
+        if (pool.length && (weights[g] || 0) > 0) { pools[g] = pool; effWeights[g] = weights[g]; }
+      }
+      while (placed.length < count && guard++ < 200) {
+        const grade = weightedGrade(effWeights, rng);
+        const pool = pools[grade];
+        if (!pool || !pool.length) continue;
+        // 同品质重试 3 次：大件摆不下会稀释高品质占比，多抽几件同品质的再放弃
+        for (let t = 0; t < 3; t++) {
+          const item = pool[Math.floor(rng() * pool.length)];
+          const pos = packFirstFit(occ, cont.w, cont.h, item.len, item.wid, true);
+          if (pos) { placed.push({ item, x: pos.x, y: pos.y, w: pos.w, h: pos.h }); break; }
+        }
       }
     }
     if (!placed.length) { // 极端保底：塞一件池内 1 格货（池空才退回全物品）

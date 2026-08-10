@@ -16,36 +16,45 @@ const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 const L = [];
 L.push("# 鼠鼠摸金 · 掉落与物品数据库");
 L.push("");
-L.push(`> 生成时间 ${new Date().toISOString().slice(0, 10)} · 数据源见 data/loot.js 头部（物品=官方图鉴快照，价格=${LOOT.meta.priceSource} ${LOOT.meta.priceDate}，爆率=同人自设非官方）。`);
+L.push(`> 生成时间 ${new Date().toISOString().slice(0, 10)} · 数据源见 data/loot.js 头部（物品=官方图鉴快照，价格=${LOOT.meta.priceSource} ${LOOT.meta.priceDate}，${LOOT.meta.dropRateSource || "爆率=同人自设非官方"}）。`);
 L.push(`> 重新生成：仓库根目录跑 \`node tools/dump_loot_doc.js\``);
 L.push("");
-L.push("## 一、容器爆率（每件物品独立按此 roll 品质，再从该品质且属于该容器产出池（见二）的物品里等概抽一件；池内无货的品质权重剔除重归一）");
+L.push("## 一、容器掉落（逐物品加权：基准=小涛查开容器模拟器服务端接口实测 24 容器×2000 开，游戏内按品质上浮 灰/绿×1 蓝×1.05 紫×1.15 金×1.4 红×1.8）");
 L.push("");
-L.push("| 容器档位 | 灰 | 绿 | 蓝 | 紫 | 金 | 红 |");
-L.push("|---|---|---|---|---|---|---|");
-for (const t of [6, 5, 1]) {
-  const w = LOOT.dropWeights[t];
-  L.push(`| ${TIER_NAME[t]}（tier${t}） | ${pct(w[1])} | ${pct(w[2])} | ${pct(w[3])} | ${pct(w[4])} | ${pct(w[5])} | ${pct(w[6])} |`);
-}
+// 基准红率/金率（采样原始计数，含图鉴外物品）
+let rawRates = {};
+try {
+  rawRates = JSON.parse(fs.readFileSync(path.join(ROOT, "tools", "data", "container_rates_api_raw.json"), "utf8"));
+} catch (e) { /* 无采样文件时基准列留空 */ }
+L.push("大武器箱/弹药箱的真实主产是枪械弹药（收集品图鉴不含），与模拟器未收录的 4 个容器（三角蚌/金币堆/放射性储物箱/工业金属储物箱）一起回退 tier 品质权重（同人自设）：tier6 红 9% / tier5 红 3% / tier1 红 0.8%。");
 L.push("");
-L.push("每个容器件数 ≈ 格数÷3（±2 抖动，至少 1 件）。「模拟实测红率」为蒙特卡洛模拟（每容器 800 开）的实际出红占比——大件摆不下会轻微稀释高档占比，实测比标称略低属正常：");
+L.push("「上浮后红率」为蒙特卡洛模拟（每容器 800 开）的实际出红占比——大件摆不下会轻微稀释，实测略低属正常：");
 L.push("");
-L.push("| 容器 | 档位 | 尺寸 | 期望件数 | 标称红率 | 模拟实测红率 | 每开一次出红期望 |");
+L.push("| 容器 | 档位 | 尺寸 | 平均每开件数(实测) | 基准红率(实测) | 上浮后红率(蒙特卡洛) | 每开一次出红期望 |");
 L.push("|---|---|---|---|---|---|---|");
 for (const c of LOOT.containers) {
-  const n = Math.max(1, Math.round(c.w * c.h / 3)); // 件数 ≈ 格数÷3，至少 1 件
-  const pr = LOOT.dropWeights[c.tier][6];
+  const avg = c.avgDrops != null ? c.avgDrops : "—";
+  let base = "—";
+  const r = rawRates[c.name];
+  if (r && r.opens) {
+    let red = 0, tot = 0;
+    for (const [n, cnt] of Object.entries(r.items)) { tot += cnt; if (r.grades && r.grades[n] === 6) red += cnt; }
+    base = (red / tot * 100).toFixed(1) + "%";
+  }
   let red = 0, total = 0;
   for (let i = 0; i < 800; i++) {
     for (const d of DFR.rollContainer(Math.random, c, LOOT)) { total++; if (d.item.grade === 6) red++; }
   }
   const sim = total ? red / total : 0;
-  L.push(`| ${c.name} | ${TIER_NAME[c.tier]} | ${c.w}×${c.h} | ${n} | ${pct(pr)} | ${(sim * 100).toFixed(1)}% | ${(n * sim * 100).toFixed(1)}% |`);
+  const perOpen = c.avgDrops != null ? c.avgDrops : Math.max(1, Math.round(c.w * c.h / 3));
+  L.push(`| ${c.name} | ${TIER_NAME[c.tier]} | ${c.w}×${c.h} | ${avg} | ${base} | ${(sim * 100).toFixed(1)}% | ${(perOpen * sim * 100).toFixed(1)}% |`);
 }
+L.push("");
+L.push("逐物品实测爆率全表见任务目录《容器物品爆率表_20260810.md》（24 容器×2000 开，含图鉴外物品）；结构化数据在 tools/data/container_item_rates.json。");
 L.push("");
 L.push("## 二、容器产出池（哪些容器能出哪些类别；2026-08-10 采样小涛查开容器模拟器校准，每容器 400 开、命中占比 ≥3% 收录）");
 L.push("");
-L.push("标【推断】的 4 个容器模拟器未收录，按语义自设。品质权重仍为同人自设，非官方概率。");
+L.push("标【推断】的 4 个容器模拟器未收录，按语义自设。");
 L.push("");
 L.push("| 容器 | 档位 | 可产出类别 | 品质上限 |");
 L.push("|---|---|---|---|");

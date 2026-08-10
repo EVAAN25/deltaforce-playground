@@ -51,6 +51,11 @@ node tools/fetch_props.js    # 收集品图片 → assets/props/
 python3 tools/scrape_item_jz.py        # 刷新物价：小涛查物品单格价值榜 → tools/data/item_jz.json
 python3 tools/sample_container_pools.py # 重采样容器产出池（小涛查开容器模拟器，约 15 分钟）
                                        #   → tools/data/container_pools_sample.json（容器表在 build_loot.js 手工维护）
+python3 tools/sample_container_rates.py # 逐物品爆率采样：直连模拟器服务端 roll 接口
+                                       #   /api/sjz/mnq_ss（页面内 axios+GetPath 签名+GetData01 解密，
+                                       #   100ms 定速，24 容器×2000 开约 2.5h，增量落盘可续跑）
+                                       #   → tools/data/container_rates_api_raw.json（原始计数）
+                                       #   注意 100ms 以下会被风控（HTTP2 断连，等几分钟自愈）
 ```
 
 两个脚本均无第三方依赖（Node ≥18，用内置 fetch）。`build_data.js` 做的清洗/合并：

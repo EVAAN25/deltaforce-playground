@@ -123,6 +123,13 @@ const DROP_WEIGHTS = {
   1: { 1: 0.347, 2: 0.33, 3: 0.20, 4: 0.09, 5: 0.025, 6: 0.008 },
 };
 
+// ---- 逐物品掉落权重（2026-08-10 起）----
+// 基准 = 小涛查开容器模拟器服务端接口实测采样（tools/sample_container_rates.py，
+// 24 容器×2000 开 → data/container_rates_api_raw.json）；游戏内再按品质小幅上浮
+// （raid.js GRADE_BOOST）。容器有 rates 则走逐物品加权，没有（模拟器未收录的 4 个）
+// 回退上面 tier 品质权重 × 类别池等概的老逻辑。
+const CONTAINER_RATES = path.join(ROOT, "tools", "data", "container_rates_api_raw.json");
+
 (async () => {
   const [raw, prices] = await Promise.all([
     fetchJson(`${DFDATA}/props/collection.json`),
@@ -186,21 +193,53 @@ const DROP_WEIGHTS = {
     }
   }
 
+  // ---- 合并逐物品实测掉落权重（有采样数据的容器）----
+  const normName = (s) => s.replace(/[-\s]/g, "");
+  const ourByNorm = new Map(items.map((it) => [normName(it.name), it.name]));
+  const containers = CONTAINERS.map((c) => ({ ...c }));
+  if (fs.existsSync(CONTAINER_RATES)) {
+    const ratesRaw = JSON.parse(fs.readFileSync(CONTAINER_RATES, "utf8"));
+    for (const c of containers) {
+      const r = ratesRaw[c.name];
+      if (!r || !r.opens) continue;
+      const rates = {}; // 我们的物品名 -> 实测次数（图鉴外物品不进游戏，权重自然归零）
+      let matched = 0, total = 0;
+      for (const [simName, cnt] of Object.entries(r.items)) {
+        total += cnt;
+        const our = ourByNorm.get(normName(simName));
+        if (!our) continue;
+        matched += cnt;
+        rates[our] = (rates[our] || 0) + cnt;
+      }
+      if (matched / total < 0.1 || Object.keys(rates).length < 5) {
+        // 命中率过低（真实池是枪/弹药等我们图鉴没有的品类）：回退 tier 品质权重老逻辑
+        console.log(`  掉落权重：${c.name} 图鉴命中仅 ${(matched / total * 100).toFixed(0)}%，回退 tier 品质权重`);
+        continue;
+      }
+      c.rates = rates;
+      c.avgDrops = +(total / r.opens).toFixed(2); // 平均每开件数（含图鉴外物品，保持真实节奏）
+      c.rateSample = r.opens;
+      console.log(`  掉落权重：${c.name} 采样 ${r.opens} 开，图鉴命中 ${(matched / total * 100).toFixed(0)}%，池内物品 ${Object.keys(rates).length} 种`);
+    }
+  } else {
+    console.log("提示：无容器爆率采样文件（tools/data/container_rates_api_raw.json），全部容器回退 tier 品质权重");
+  }
+
   const meta = {
     priceSource: PRICE_SOURCE_NAME[prices.channel],
     priceDate: prices.date,
     priceLive: prices.live,
     itemCount: items.length,
     pricedCount,
+    dropRateSource: "小涛查开容器模拟器服务端接口实测采样（2026-08-10，24 容器×2000 开），游戏内按品质小幅上浮",
   };
 
   const out = `/* 由 tools/build_loot.js 生成（${new Date().toISOString().slice(0, 10)}），请勿手改
  * 物品：jiansenc/DeltaForceData 官方图鉴快照（收集品 ${items.length} 件，真实图鉴字段）
  * 价值：${meta.priceSource}，价格日期 ${meta.priceDate}（可交易 ${pricedCount} 件；未匹配 ${unpriced.length} 件不参与出题）
- * 容器与掉落权重：同人自设玩法数值（仅 WIP 玩法使用），非官方数据 */
-window.DF_LOOT = ${JSON.stringify({ items, containers: CONTAINERS, dropWeights: DROP_WEIGHTS, meta }, null, 1)};
-`;
-  fs.writeFileSync(path.join(ROOT, "data", "loot.js"), out);
+ * 掉落：${meta.dropRateSource}；无采样容器回退 tier 品质权重（同人自设），非官方概率 */`;
+  fs.writeFileSync(path.join(ROOT, "data", "loot.js"),
+    out + `\nwindow.DF_LOOT = ${JSON.stringify({ items, containers, dropWeights: DROP_WEIGHTS, meta }, null, 1)};\n`);
   const stats = Object.fromEntries(Object.entries(byGrade).map(([g, a]) => [g, a.length]));
   console.log(`data/loot.js 生成完成：物品 ${items.length} 件（品质分布 ${JSON.stringify(stats)}），容器 ${CONTAINERS.length} 种`);
   console.log(`价格源：${meta.priceSource} @ ${meta.priceDate}；可交易 ${pricedCount}/${items.length}`);

@@ -549,6 +549,33 @@ ok("鼠鼠摸金：容器产出池约束（类别/品质上限，2026-08-10 小�
   }
 });
 
+ok("鼠鼠摸金：逐物品实测权重 + 品质上浮（2026-08-10 采样基准）", () => {
+  const byName = Object.fromEntries(DF_LOOT.containers.map((c) => [c.name, c]));
+  // 24 个采样容器带逐物品权重；大武器箱/弹药箱（真池=枪弹）+模拟器未收录 4 容器回退老逻辑
+  const withDrops = DF_LOOT.containers.filter((c) => c.rates);
+  assert.strictEqual(withDrops.length, 22, "采样容器数");
+  for (const name of ["大武器箱", "弹药箱", "三角蚌", "金币堆", "放射性储物箱", "工业金属储物箱"]) {
+    assert(!byName[name].rates, name + " 应回退老逻辑");
+  }
+  const rollN = (c, n) => {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(...DFR.rollContainer(DFG.mulberry32(i * 7919 + c.id), c, DF_LOOT));
+    return out.map((d) => d.item);
+  };
+  // 小保险箱实测每开 1 件 → 游戏内 1~2 件
+  const small = byName["小保险箱"];
+  for (let i = 0; i < 30; i++) {
+    const n = DFR.rollContainer(DFG.mulberry32(i), small, DF_LOOT).length;
+    assert(n >= 1 && n <= 2, "小保险箱件数 " + n);
+  }
+  // 大保险箱：常见货（黄金饰章）必须远比非洲之心多；上浮后红率应高于实测基准 4.96%
+  const drops = rollN(byName["大保险箱"], 400);
+  const cnt = (n) => drops.filter((d) => d.name === n).length;
+  assert(cnt("黄金饰章") > cnt("非洲之心") * 5, "常见/极稀有相对频率失真");
+  const red = drops.filter((d) => d.grade === 6).length / drops.length;
+  assert(red > 0.06 && red < 0.25, `上浮后红率 ${(red * 100).toFixed(1)}% 不在合理区间`);
+});
+
 ok("鼠鼠摸金：first-fit 装箱正确性（含旋转与放不下失败）", () => {
   const bag = DFR.makeBag(2, 2);
   const cell = { id: 1, name: "单格", grade: 1, len: 1, wid: 1, cells: 1, value: 100, perCell: 100 };
