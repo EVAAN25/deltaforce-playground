@@ -76,35 +76,44 @@ const PRICE_SOURCE_NAME = {
 
 // ---- 容器表（游戏真实容器；尺寸/档位参考小涛查前端常量）----
 // tier: 6=顶级容器 5=高级容器 1=低级容器
+// types: 容器产出池（可掉落的物品类别，官方图鉴 6 大类）。
+//   来源：2026-08-10 采样小涛查「鼠鼠偷吃模拟器」(orzice.com/v/mnq_sstc)
+//   每容器 400 开（tools/sample_container_pools.py → data/container_pools_sample.json），
+//   按命中样本占比 ≥3% 收录类别；模拟器自述"容器物资与游戏内基本一致"。
+//   另经社区攻略交叉校验（3DM/小黑盒《全种类容器特点介绍》3dmgame.com/gl/3971026.html：
+//   保险=纯工艺、服务器/机箱=纯电子、医疗包/医疗堆=纯医疗、电脑=电子+资料、高级储物箱=除工艺外）。
+//   模拟器未做的 4 个容器（三角蚌/金币堆/放射性储物箱/工业金属储物箱）为语义推断，注【推断】。
+// maxGrade: 产出品质上限（采样 900+ 开无红 + 无"出红"社区梗的容器才设）。
+const T = { ART: "工艺藏品", MAT: "工具材料", ELE: "电子物品", MED: "医疗道具", HOME: "家居物品", INTEL: "资料情报" };
 const CONTAINERS = [
-  { id: 1, name: "大保险箱", w: 4, h: 4, tier: 6 },
-  { id: 4, name: "小保险箱", w: 4, h: 4, tier: 6 },
-  { id: 26, name: "三角蚌", w: 1, h: 1, tier: 6 },
-  { id: 30, name: "金币堆", w: 3, h: 3, tier: 6 },
-  { id: 17, name: "电脑", w: 3, h: 3, tier: 6 },
-  { id: 28, name: "放射性储物箱", w: 5, h: 6, tier: 5 },
-  { id: 29, name: "工业金属储物箱", w: 5, h: 5, tier: 5 },
-  { id: 18, name: "服务器", w: 5, h: 5, tier: 5 },
-  { id: 3, name: "航空箱", w: 5, h: 6, tier: 5 },
-  { id: 5, name: "实验服", w: 4, h: 4, tier: 5 },
-  { id: 8, name: "高级储物箱", w: 5, h: 5, tier: 5 },
-  { id: 9, name: "医疗物资堆", w: 5, h: 5, tier: 5 },
-  { id: 11, name: "登山包", w: 4, h: 5, tier: 5 },
-  { id: 22, name: "大武器箱", w: 6, h: 4, tier: 5 },
-  { id: 6, name: "井盖", w: 5, h: 6, tier: 1 },
-  { id: 7, name: "高级旅行箱", w: 4, h: 4, tier: 1 },
-  { id: 10, name: "医疗包", w: 4, h: 4, tier: 1 },
-  { id: 2, name: "鸟窝", w: 4, h: 4, tier: 1 },
-  { id: 12, name: "旅行袋", w: 4, h: 4, tier: 1 },
-  { id: 13, name: "快递箱", w: 4, h: 4, tier: 1 },
-  { id: 14, name: "抽屉柜", w: 4, h: 4, tier: 1 },
-  { id: 15, name: "垃圾箱", w: 5, h: 6, tier: 1 },
-  { id: 16, name: "野外物资堆", w: 7, h: 5, tier: 1 },
-  { id: 19, name: "手提箱", w: 4, h: 4, tier: 1 },
-  { id: 20, name: "大工具盒", w: 4, h: 4, tier: 1 },
-  { id: 21, name: "电脑机箱", w: 3, h: 3, tier: 1 },
-  { id: 23, name: "弹药箱", w: 4, h: 4, tier: 1 },
-  { id: 24, name: "工具柜", w: 5, h: 6, tier: 1 },
+  { id: 1, name: "大保险箱", w: 4, h: 4, tier: 6, types: [T.ART] },
+  { id: 4, name: "小保险箱", w: 4, h: 4, tier: 6, types: [T.ART] },
+  { id: 26, name: "三角蚌", w: 1, h: 1, tier: 6, types: [T.ART] }, // 【推断】蚌出珍珠类工艺藏品
+  { id: 30, name: "金币堆", w: 3, h: 3, tier: 6, types: [T.ART] }, // 【推断】金币类工艺藏品
+  { id: 17, name: "电脑", w: 3, h: 3, tier: 6, types: [T.ELE, T.INTEL] },
+  { id: 28, name: "放射性储物箱", w: 5, h: 6, tier: 5, types: [T.MAT, T.ELE] }, // 【推断】
+  { id: 29, name: "工业金属储物箱", w: 5, h: 5, tier: 5, types: [T.MAT, T.ELE] }, // 【推断】
+  { id: 18, name: "服务器", w: 5, h: 5, tier: 5, types: [T.ELE] },
+  { id: 3, name: "航空箱", w: 5, h: 6, tier: 5, types: [T.MAT, T.ELE, T.MED, T.HOME] },
+  { id: 5, name: "实验服", w: 4, h: 4, tier: 5, types: [T.ART, T.MAT, T.ELE, T.MED, T.HOME, T.INTEL] }, // 杂池（社区：出房卡+手表怀表小红；采样 6 类齐）
+  { id: 8, name: "高级储物箱", w: 5, h: 5, tier: 5, types: [T.MAT, T.ELE, T.MED, T.HOME, T.INTEL] }, // 社区共识"除工艺藏品外都出"
+  { id: 9, name: "医疗物资堆", w: 5, h: 5, tier: 5, types: [T.MED] },
+  { id: 11, name: "登山包", w: 4, h: 5, tier: 5, types: [T.ART, T.MAT, T.ELE, T.MED, T.HOME] },
+  { id: 22, name: "大武器箱", w: 6, h: 4, tier: 5, types: [T.ELE, T.MAT] }, // 真实池主产枪械/弹药（收集品图鉴不含），采样命中部分为电子+工具
+  { id: 6, name: "井盖", w: 5, h: 6, tier: 1, types: [T.ART, T.MAT, T.ELE, T.MED, T.HOME, T.INTEL], maxGrade: 5 }, // 采样 930 开无红
+  { id: 7, name: "高级旅行箱", w: 4, h: 4, tier: 1, types: [T.HOME] },
+  { id: 10, name: "医疗包", w: 4, h: 4, tier: 1, types: [T.MED] }, // 社区共识"只出医疗道具"
+  { id: 2, name: "鸟窝", w: 4, h: 4, tier: 1, types: [T.ART, T.MAT, T.ELE, T.MED, T.HOME, T.INTEL] }, // 采样有红（"鸟窝出非洲之心"官方梗）
+  { id: 12, name: "旅行袋", w: 4, h: 4, tier: 1, types: [T.MAT, T.MED, T.HOME, T.INTEL] },
+  { id: 13, name: "快递箱", w: 4, h: 4, tier: 1, types: [T.MAT, T.MED, T.HOME] },
+  { id: 14, name: "抽屉柜", w: 4, h: 4, tier: 1, types: [T.ART, T.MED, T.HOME, T.INTEL] },
+  { id: 15, name: "垃圾箱", w: 5, h: 6, tier: 1, types: [T.ART, T.MAT, T.MED, T.HOME, T.INTEL] },
+  { id: 16, name: "野外物资堆", w: 7, h: 5, tier: 1, types: [T.MAT, T.ELE, T.MED] },
+  { id: 19, name: "手提箱", w: 4, h: 4, tier: 1, types: [T.ART, T.HOME, T.INTEL] }, // 采样主产资料+工艺，全家福等家居为变体名未计入，社区定位繁杂池
+  { id: 20, name: "大工具盒", w: 4, h: 4, tier: 1, types: [T.MAT, T.ELE] },
+  { id: 21, name: "电脑机箱", w: 3, h: 3, tier: 1, types: [T.ELE] },
+  { id: 23, name: "弹药箱", w: 4, h: 4, tier: 1, types: [T.MAT, T.ELE] }, // 真实池主产弹药（图鉴不含），采样命中部分为工具+电子
+  { id: 24, name: "工具柜", w: 5, h: 6, tier: 1, types: [T.MAT, T.MED] },
 ];
 
 // 掉落品质权重（同人自设，仅 WIP 玩法使用）：tier -> {grade: weight}
@@ -164,6 +173,17 @@ const DROP_WEIGHTS = {
   const pricedCount = items.length - unpriced.length;
   if (pricedCount < items.length * 0.85) {
     throw new Error(`价格匹配率过低：${pricedCount}/${items.length}，未匹配样例 ${unpriced.slice(0, 5).join("、")}`);
+  }
+
+  // 校验：每个容器在其 tier 权重覆盖的品质上都要有池内可掉落物品（缺失的 roll 时会重归一，此处仅提示）
+  for (const c of CONTAINERS) {
+    for (const g of Object.keys(DROP_WEIGHTS[c.tier])) {
+      if (c.maxGrade && +g > c.maxGrade) continue;
+      const pool = items.filter((it) =>
+        it.grade === +g && it.priced && (!c.types || c.types.includes(it.type)) &&
+        ((it.len <= c.w && it.wid <= c.h) || (it.wid <= c.w && it.len <= c.h)));
+      if (!pool.length) console.log(`  提示：${c.name} 品质 g${g} 池内无适配物品（roll 时该品质权重剔除重归一）`);
+    }
   }
 
   const meta = {

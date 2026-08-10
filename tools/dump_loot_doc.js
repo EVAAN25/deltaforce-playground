@@ -19,7 +19,7 @@ L.push("");
 L.push(`> 生成时间 ${new Date().toISOString().slice(0, 10)} · 数据源见 data/loot.js 头部（物品=官方图鉴快照，价格=${LOOT.meta.priceSource} ${LOOT.meta.priceDate}，爆率=同人自设非官方）。`);
 L.push(`> 重新生成：仓库根目录跑 \`node tools/dump_loot_doc.js\``);
 L.push("");
-L.push("## 一、容器爆率（每件物品独立按此 roll 品质，再从该品质池等概抽一件）");
+L.push("## 一、容器爆率（每件物品独立按此 roll 品质，再从该品质且属于该容器产出池（见二）的物品里等概抽一件；池内无货的品质权重剔除重归一）");
 L.push("");
 L.push("| 容器档位 | 灰 | 绿 | 蓝 | 紫 | 金 | 红 |");
 L.push("|---|---|---|---|---|---|---|");
@@ -43,7 +43,17 @@ for (const c of LOOT.containers) {
   L.push(`| ${c.name} | ${TIER_NAME[c.tier]} | ${c.w}×${c.h} | ${n} | ${pct(pr)} | ${(sim * 100).toFixed(1)}% | ${(n * sim * 100).toFixed(1)}% |`);
 }
 L.push("");
-L.push("## 二、关卡容器构成（每关必出的高档容器 + tier1 补齐）");
+L.push("## 二、容器产出池（哪些容器能出哪些类别；2026-08-10 采样小涛查开容器模拟器校准，每容器 400 开、命中占比 ≥3% 收录）");
+L.push("");
+L.push("标【推断】的 4 个容器模拟器未收录，按语义自设。品质权重仍为同人自设，非官方概率。");
+L.push("");
+L.push("| 容器 | 档位 | 可产出类别 | 品质上限 |");
+L.push("|---|---|---|---|");
+for (const c of LOOT.containers) {
+  L.push(`| ${c.name} | ${TIER_NAME[c.tier]} | ${(c.types || []).join("、")} | ${c.maxGrade ? GRADE_NAME[c.maxGrade] : "—"} |`);
+}
+L.push("");
+L.push("## 三、关卡容器构成（每关必出的高档容器 + tier1 补齐）");
 L.push("");
 L.push("| 关卡 | 地图 | 容器数 | 顶级 | 高级 | 巡逻队 | 倒计时 | 撤离引导 |");
 L.push("|---|---|---|---|---|---|---|---|");
@@ -53,7 +63,7 @@ for (const lv of DFR.LEVELS) {
   L.push(`| ${lv.name} | ${lv.cfg.w}×${lv.cfg.h} | ${lv.cfg.total[0]}~${lv.cfg.total[1]} | ${t6} | ${t5} | ${lv.cfg.patrols[0]}~${lv.cfg.patrols[1]} | ${lv.cfg.seconds}s | ${lv.cfg.extractMs / 1000}s |`);
 }
 L.push("");
-L.push("## 三、全物品清单（按品质→价值降序；单格价值=性价比，背包取舍看这个）");
+L.push("## 四、全物品清单（按品质→价值降序；单格价值=性价比，背包取舍看这个）");
 L.push("");
 const items = LOOT.items.slice().sort((a, b) => b.grade - a.grade || (b.value || 0) - (a.value || 0));
 let cur = 0;

@@ -521,6 +521,34 @@ ok("鼠鼠摸金：roll 掉落件数/边界/不重叠/品质合法", () => {
   }
 });
 
+ok("鼠鼠摸金：容器产出池约束（类别/品质上限，2026-08-10 小涛查模拟器采样校准）", () => {
+  const byName = Object.fromEntries(DF_LOOT.containers.map((c) => [c.name, c]));
+  // 每个容器都要定义产出池
+  for (const c of DF_LOOT.containers) assert(c.types && c.types.length >= 1, "缺产出池 " + c.name);
+  const rollN = (c, n) => {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(...DFR.rollContainer(DFG.mulberry32(i * 7919 + c.id), c, DF_LOOT));
+    return out.map((d) => d.item);
+  };
+  // 专属池：大/小保险箱只出工艺藏品，服务器/电脑机箱只出电子，医疗物资堆只出医疗
+  for (const [name, types] of [["大保险箱", ["工艺藏品"]], ["小保险箱", ["工艺藏品"]], ["服务器", ["电子物品"]], ["电脑机箱", ["电子物品"]], ["医疗物资堆", ["医疗道具"]], ["高级旅行箱", ["家居物品"]]]) {
+    const items = rollN(byName[name], 60);
+    assert(items.length > 30, name + " 样本太少");
+    for (const it of items) assert(types.includes(it.type), `${name} 出了池外类别 ${it.name}(${it.type})`);
+  }
+  // 井盖不出红（maxGrade 5）；鸟窝池含红（"鸟窝出非洲之心"梗，采样有红）
+  for (const it of rollN(byName["井盖"], 60)) assert(it.grade <= 5, "井盖出红 " + it.name);
+  const nest6 = DF_LOOT.items.filter((it) => it.grade === 6 && it.value != null && byName["鸟窝"].types.includes(it.type));
+  assert(nest6.length > 0, "鸟窝池应含红");
+  // 全容器通用：roll 结果永远不出池、不超品质上限
+  for (const c of DF_LOOT.containers) {
+    for (const it of rollN(c, 30)) {
+      assert(c.types.includes(it.type), `${c.name} 出池外 ${it.name}(${it.type})`);
+      assert(!c.maxGrade || it.grade <= c.maxGrade, `${c.name} 超品质上限 ${it.name}`);
+    }
+  }
+});
+
 ok("鼠鼠摸金：first-fit 装箱正确性（含旋转与放不下失败）", () => {
   const bag = DFR.makeBag(2, 2);
   const cell = { id: 1, name: "单格", grade: 1, len: 1, wid: 1, cells: 1, value: 100, perCell: 100 };

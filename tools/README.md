@@ -48,6 +48,9 @@ node tools/build_loot.js     # 收集品（253 件）+ 数据帝真实交易行�
                              #     python3 tools/scrape_item_jz.py 刷新，需 py playwright）
                              #   > GitHub 开源快照（2026-01-10 停更，兜底）
 node tools/fetch_props.js    # 收集品图片 → assets/props/
+python3 tools/scrape_item_jz.py        # 刷新物价：小涛查物品单格价值榜 → tools/data/item_jz.json
+python3 tools/sample_container_pools.py # 重采样容器产出池（小涛查开容器模拟器，约 15 分钟）
+                                       #   → tools/data/container_pools_sample.json（容器表在 build_loot.js 手工维护）
 ```
 
 两个脚本均无第三方依赖（Node ≥18，用内置 fetch）。`build_data.js` 做的清洗/合并：
