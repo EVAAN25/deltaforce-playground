@@ -14,4 +14,4 @@ rsync -az --delete -e "ssh -i $KEY" \
   ./ "$HOST:/var/www/df/"
 curl -sf -o /dev/null -w "182 /df/ 自检 HTTP %{http_code}\n" "http://182.254.155.14/df/"
 curl -sf -o /dev/null -w "182 /df/ 贴图自检 HTTP %{http_code}\n" "http://182.254.155.14/df/assets/props/p_15080040001.png"
-echo "部署完成：http://182.254.155.14/df/  http://komozyw.com/df/"
+echo "部署完成：http://182.254.155.14/df/  https://komozyw.com/df/"
