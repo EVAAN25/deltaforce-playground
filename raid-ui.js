@@ -1159,7 +1159,20 @@
       return;
     }
     d.taken = true;
-    renderGridItems(ov); // 拿走即清除（物品消失但空格子底框要补上）：taken 不再占 occ，重渲染后空格显示 rp-empty 底框
+    // 拿走即清除：物品元素换成逐格 rp-empty 底框（不做整格重渲染——会打断进行中的转圈动画）
+    const gi = ov.c.drops.indexOf(d);
+    const grid = $("#rpGrid");
+    const gel = grid.querySelector(`.rp-item[data-i="${gi}"]`);
+    if (gel) {
+      for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) {
+        const cell = document.createElement("div");
+        cell.className = "rp-empty";
+        cell.style.gridColumn = String(d.x + dx + 1);
+        cell.style.gridRow = String(d.y + dy + 1);
+        gel.insertAdjacentElement("beforebegin", cell);
+      }
+      gel.remove();
+    }
     Sfx.pickup();
     DF_APP.toast(res === 2
       ? `背包自动整理后塞下了「${d.item.name}」`
