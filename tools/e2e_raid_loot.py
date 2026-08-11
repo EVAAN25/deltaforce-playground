@@ -124,6 +124,7 @@ with sync_playwright() as p:
         db = pg.locator("#rpBagMain").bounding_box()
         bag_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
         rev_before = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length")
+        empty_before = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-empty').length")
         pg.mouse.move(gb["x"] + gb["width"] / 2, gb["y"] + gb["height"] / 2)
         pg.mouse.down()
         pg.mouse.move(gb["x"] + gb["width"] / 2 + 30, gb["y"] + gb["height"] / 2 + 30, steps=3)
@@ -138,8 +139,10 @@ with sync_playwright() as p:
         check("容器格子直接拖入背包", bag_n == bag_before + 1, f"bag={bag_n}")
         rev_after = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length")
         taken_ghost = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.taken').length")
+        empty_after = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-empty').length")
         check("拿走的格子直接清除（不留置灰占位）", rev_after == rev_before - 1 and taken_ghost == 0,
               f"revealed {rev_before}→{rev_after}, taken占位 {taken_ghost}")
+        check("拿走后空格子底框显示出来", empty_after > empty_before, f"empty {empty_before}→{empty_after}")
 
     # 双击容器格子物品图标 → 入包（如还有未拿走的）
     if pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length") > 0:

@@ -1159,9 +1159,7 @@
       return;
     }
     d.taken = true;
-    const gi = ov.c.drops.indexOf(d);
-    const gel = $("#rpGrid").querySelector(`.rp-item[data-i="${gi}"]`);
-    if (gel) gel.remove(); // 拿走即清除，不留置灰占位（再放回走重新装箱，不会重叠）
+    renderGridItems(ov); // 拿走即清除（物品消失但空格子底框要补上）：taken 不再占 occ，重渲染后空格显示 rp-empty 底框
     Sfx.pickup();
     DF_APP.toast(res === 2
       ? `背包自动整理后塞下了「${d.item.name}」`
