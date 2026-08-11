@@ -123,6 +123,7 @@ with sync_playwright() as p:
         gb = pg.locator("#rpGrid .rp-item.revealed:not(.taken)").first.bounding_box()
         db = pg.locator("#rpBagMain").bounding_box()
         bag_before = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
+        rev_before = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length")
         pg.mouse.move(gb["x"] + gb["width"] / 2, gb["y"] + gb["height"] / 2)
         pg.mouse.down()
         pg.mouse.move(gb["x"] + gb["width"] / 2 + 30, gb["y"] + gb["height"] / 2 + 30, steps=3)
@@ -135,7 +136,10 @@ with sync_playwright() as p:
         time.sleep(0.3)
         bag_n = pg.evaluate("() => window.DFR_UI._raid.run.bagMain.items.length + window.DFR_UI._raid.run.bagSafe.items.length")
         check("容器格子直接拖入背包", bag_n == bag_before + 1, f"bag={bag_n}")
-        check("格子置为已拿走", pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.taken').length") >= 1)
+        rev_after = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length")
+        taken_ghost = pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.taken').length")
+        check("拿走的格子直接清除（不留置灰占位）", rev_after == rev_before - 1 and taken_ghost == 0,
+              f"revealed {rev_before}→{rev_after}, taken占位 {taken_ghost}")
 
     # 双击容器格子物品图标 → 入包（如还有未拿走的）
     if pg.evaluate("() => document.querySelectorAll('#rpGrid .rp-item.revealed:not(.taken)').length") > 0:
@@ -364,7 +368,8 @@ with sync_playwright() as p:
     pg.evaluate("() => { window.DFR_UI.setMode('daily'); }")
     time.sleep(0.5)
     pg.evaluate("() => { window.DFR_UI._raid.lastAct = performance.now() - 6 * 60 * 1000; }")
-    for _ in range(24):
+    # checkIdle 5s 轮询；冷文件加载饿主线程会推迟定时器，给足 20s 窗口（2026-08-11 抖动实测）
+    for _ in range(40):
         if pg.evaluate("() => window.DFR_UI._raid.run.status") != "playing": break
         time.sleep(0.5)
     check("挂机超时自动出局", pg.evaluate("() => window.DFR_UI._raid.run.status") == "lost")

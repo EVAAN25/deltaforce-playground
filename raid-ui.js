@@ -644,7 +644,8 @@
   function bagItemAt(entry, cs) {
     const it = entry.item;
     const hint = Raid.overlay ? "双击/按F 放回容器 · 拖拽挪位（贴边自动横竖）· 拖出面板丢弃" : "拖拽挪位（贴边自动横竖）· 拖出去丢弃";
-    return `<div class="bag-item g${it.grade}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
+    const rotCls = entry.w !== it.len && it.len !== it.wid ? " rot" : ""; // 横放物品图片跟着横
+    return `<div class="bag-item g${it.grade}${rotCls}" title="${it.name} · 价值【${DFR.fmt(it.value)}】· 单格【${DFR.fmt(it.perCell)}】· ${hint}"
       style="left:${entry.x * cs}px;top:${entry.y * cs}px;width:${entry.w * cs}px;height:${entry.h * cs}px">
       ${itemImgHTML(it)}
       <div class="bi-name">${it.name}</div>
@@ -991,15 +992,18 @@
     grid.style.gridAutoRows = cs + "px";
     const occ = DFR.makeGrid(c.w, c.h, 0);
     c.drops.forEach((d) => {
+      if (d.taken) return; // 已拿走的直接清除，不占格不显示（放回时按空格重新装箱）
       for (let dy = 0; dy < d.h; dy++) for (let dx = 0; dx < d.w; dx++) occ[d.y + dy][d.x + dx] = 1;
     });
     let html = c.drops.map((d, i) => {
+      if (d.taken) return ""; // 拿走后容器内不留置灰占位
       const pos = `grid-column:${d.x + 1}/span ${d.w};grid-row:${d.y + 1}/span ${d.h}`;
       if (!d.revealed) {
         return `<div class="rp-item rp-silhouette" data-i="${i}" title="未鉴定 · 占 ${d.w}×${d.h} 格" style="${pos}"><span class="rp-unknown">?</span></div>`;
       }
-      return `<div class="rp-item revealed g${d.item.grade}${d.taken ? " taken" : ""}" data-i="${i}"
-        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】${d.taken ? "（已入包）" : " · 双击/按F/拖拽入包"}" style="${pos}">
+      const rotCls = d.w !== d.item.len && d.item.len !== d.item.wid ? " rot" : ""; // 横放物品图片跟着横
+      return `<div class="rp-item revealed g${d.item.grade}${rotCls}" data-i="${i}"
+        title="${d.item.name} · 价值【${DFR.fmt(d.item.value)}】 · 双击/按F/拖拽入包" style="${pos}">
         ${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div></div>`;
     }).join("");
     for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
@@ -1079,6 +1083,7 @@
       el.classList.remove("rp-silhouette", "searching");
       el.classList.add("g" + d.item.grade, "revealed");
       el.title = `${d.item.name} · 价值【${DFR.fmt(d.item.value)}】· 双击/按F/拖拽入包`;
+      if (d.w !== d.item.len && d.item.len !== d.item.wid) el.classList.add("rot"); // 横放物品图片跟着横
       el.innerHTML = `${itemImgHTML(d.item)}<div class="bi-name">${d.item.name}</div>`;
       bindGridItem(el, i); // 就地揭晓的格子补绑交互（否则首开时按 F/拖拽不生效）
     }
@@ -1101,7 +1106,7 @@
     const run = Raid.run;
     const staged = stagedDrops(ov.c);
     ov.value = ov.c.drops.filter((d) => d.revealed).reduce((s, d) => s + d.item.value, 0);
-    $("#rpValue").textContent = `箱内【${DFR.fmt(ov.value)}】`;
+    $("#rpValue").textContent = `容器内【${DFR.fmt(ov.value)}】`;
     $("#rpStaging").innerHTML = staged.map((d, i) => {
       const it = d.item;
       const canMain = fitsBagSmart(run.bagMain, it);
@@ -1156,7 +1161,7 @@
     d.taken = true;
     const gi = ov.c.drops.indexOf(d);
     const gel = $("#rpGrid").querySelector(`.rp-item[data-i="${gi}"]`);
-    if (gel) gel.classList.add("taken");
+    if (gel) gel.remove(); // 拿走即清除，不留置灰占位（再放回走重新装箱，不会重叠）
     Sfx.pickup();
     DF_APP.toast(res === 2
       ? `背包自动整理后塞下了「${d.item.name}」`

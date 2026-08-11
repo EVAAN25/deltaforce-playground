@@ -342,7 +342,7 @@
    * 返回已装箱的 [{item, x, y, w, h}]（摆不下的会放弃该件，保证至少 1 件）。
    */
   // 品质上浮系数：在实测基准上小幅提高高品爆率（用户拍板 2026-08-10）
-  const GRADE_BOOST = { 1: 1, 2: 1, 3: 1.05, 4: 1.15, 5: 1.4, 6: 1.8 };
+  const GRADE_BOOST = { 1: 1, 2: 1.05, 3: 1.15, 4: 1.3, 5: 1.65, 6: 2.1 };
 
   function rollContainer(rng, cont, loot) {
     const cells = cont.w * cont.h;
