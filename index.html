@@ -393,5 +393,22 @@
 <script src="raid.js?v=20260811d"></script>
 <script src="app.js?v=20260811d"></script>
 <script src="raid-ui.js?v=20260811d"></script>
+<script>
+/* 访问统计埋点：仅在 182/komozyw 线上环境上报，nginx 记日志，后台 /stats/ 汇总 */
+(function () {
+  if (location.hostname !== "komozyw.com" && location.hostname !== "182.254.155.14") return;
+  var last = null;
+  function hit() {
+    var r = location.hash || "#/";
+    if (r === last) return;
+    last = r;
+    var url = "/df-hit?r=" + encodeURIComponent(r);
+    if (navigator.sendBeacon) navigator.sendBeacon(url);
+    else new Image().src = url;
+  }
+  window.addEventListener("hashchange", hit);
+  hit();
+})();
+</script>
 </body>
 </html>
