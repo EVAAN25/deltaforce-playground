@@ -247,8 +247,8 @@
         x: p.path[0].x, y: p.path[0].y, vx: p.path[0].x * TS, vy: p.path[0].y * TS,
       })),
       containers: map.containers.map((c) => Object.assign({ searched: false, drops: null }, c)),
-      bagMain: DFR.makeBag(6, 4),
-      bagSafe: DFR.makeBag(2, 2),
+      bagMain: DFR.makeBag(...(cfg.bag || [6, 4])),
+      bagSafe: DFR.makeBag(...(cfg.safe || [2, 2])),
       status: "playing", outcome: null,
       extracting: 0, searched: 0,
       story: DFR.RAID_LINES.intro[Math.floor(introRng() * DFR.RAID_LINES.intro.length)],
@@ -624,6 +624,8 @@
       for (const sel of BAG_GRIDS[which]) {
         const el = $(sel);
         if (!el) continue;
+        el.style.setProperty("--bw", run[which].w); // 背包/安全箱尺寸随关卡梯度变化
+        el.style.setProperty("--bh", run[which].h);
         el.innerHTML = run[which].items.map((e) => bagItemAt(e, cs)).join("");
         el.querySelectorAll(".bag-item").forEach((itemEl, i) => {
           itemEl.addEventListener("dblclick", () => onBagDbl(which, i));
@@ -1458,7 +1460,7 @@
       <button class="raid-level${i === Raid.level ? " active" : ""}" data-i="${i}">
         <b>第${CN[i]}关 · ${lv.name}</b>
         <span class="rl-desc">${lv.desc}</span>
-        <span class="rl-stats">${lv.cfg.w}×${lv.cfg.h} · 巡逻 ${lv.cfg.patrols[0]}~${lv.cfg.patrols[1]} 队 · 引导 ${lv.cfg.extractMs / 1000}s</span>
+        <span class="rl-stats">${lv.cfg.w}×${lv.cfg.h} · 巡逻 ${lv.cfg.patrols[0]}~${lv.cfg.patrols[1]} 队 · 引导 ${lv.cfg.extractMs / 1000}s · 背包 ${lv.cfg.bag[0]}×${lv.cfg.bag[1]}+箱 ${lv.cfg.safe[0]}×${lv.cfg.safe[1]}</span>
         <span class="rl-best${best[lv.id] ? "" : " none"}">${best[lv.id] ? "最佳【" + DFR.fmt(best[lv.id]) + "】" : "未开荒"}</span>
       </button>`).join("");
     el.querySelectorAll(".raid-level").forEach((b) =>

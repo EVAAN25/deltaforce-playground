@@ -31,24 +31,31 @@
   const MEME_TEXT = "座钟？？谁把送终的玩意儿塞这了";
 
   /*
-   * 关卡配置（图名用官方烽火地带地图名）。cfg 字段：
+   * 关卡配置（图名用官方烽火地带地图名，后三关为官方版本活动图）。cfg 字段：
    * w/h 地图格数 · seconds 倒计时 · extractMs 撤离引导 · obs 障碍块数区间
    * tiers 必出高价值容器 tier 列表（不足 total 的用 tier1 补齐）
    * total 容器总数区间 · patrols 巡逻队数区间 · radius 视野半径区间
+   * bag/safe 主背包/安全箱格数 [宽,高]——关卡越高级包越大（梯度）
    */
   const LEVELS = [
     { id: "dam", name: "零号大坝·外围", desc: "教学关：图小巡逻少，时间宽裕",
-      cfg: { w: 20, h: 13, seconds: 300, extractMs: 4000, obs: [5, 8], tiers: [6, 5, 5], total: [8, 10], patrols: [1, 2], radius: [3, 3] } },
+      cfg: { w: 20, h: 13, seconds: 300, extractMs: 4000, obs: [5, 8], tiers: [6, 5, 5], total: [8, 10], patrols: [1, 2], radius: [3, 3], bag: [5, 4], safe: [2, 2] } },
     { id: "valley", name: "长弓溪谷", desc: "标准局：经典尺寸，两队巡逻",
-      cfg: { w: MAP_W, h: MAP_H, seconds: RAID_SECONDS, extractMs: EXTRACT_MS, obs: [8, 12], tiers: [6, 6, 5, 5, 5, 5], total: [10, 14], patrols: [2, 3], radius: [3, 4] } },
+      cfg: { w: MAP_W, h: MAP_H, seconds: RAID_SECONDS, extractMs: EXTRACT_MS, obs: [8, 12], tiers: [6, 6, 5, 5, 5, 5], total: [10, 14], patrols: [2, 3], radius: [3, 4], bag: [6, 4], safe: [2, 2] } },
     { id: "brakkesh", name: "巴克什", desc: "大图多巡逻，高价值容器更多",
-      cfg: { w: 28, h: 18, seconds: 300, extractMs: 6000, obs: [10, 15], tiers: [6, 6, 5, 5, 5, 5, 5], total: [13, 16], patrols: [3, 4], radius: [3, 4] } },
+      cfg: { w: 28, h: 18, seconds: 300, extractMs: 6000, obs: [10, 15], tiers: [6, 6, 5, 5, 5, 5, 5], total: [13, 16], patrols: [3, 4], radius: [3, 4], bag: [6, 5], safe: [3, 2] } },
     { id: "space", name: "航天基地", desc: "大图、重兵把守、引导最久",
-      cfg: { w: 32, h: 20, seconds: 330, extractMs: 7000, obs: [14, 20], tiers: [6, 6, 6, 5, 5, 5, 5, 5], total: [15, 19], patrols: [4, 5], radius: [3, 4] } },
+      cfg: { w: 32, h: 20, seconds: 330, extractMs: 7000, obs: [14, 20], tiers: [6, 6, 6, 5, 5, 5, 5, 5], total: [15, 19], patrols: [4, 5], radius: [3, 4], bag: [7, 5], safe: [3, 2] } },
     { id: "prison", name: "潮汐监狱", desc: "立体监狱：隔断密、巡逻多、视野短，货也更肥",
-      cfg: { w: 30, h: 19, seconds: 330, extractMs: 6000, obs: [18, 24], tiers: [6, 6, 6, 5, 5, 5, 5, 5, 5], total: [15, 18], patrols: [4, 5], radius: [2, 3] } },
+      cfg: { w: 30, h: 19, seconds: 330, extractMs: 6000, obs: [18, 24], tiers: [6, 6, 6, 5, 5, 5, 5, 5, 5], total: [15, 18], patrols: [4, 5], radius: [2, 3], bag: [7, 5], safe: [3, 3] } },
     { id: "az3", name: "AZ3核电站", desc: "最新图：辐射禁区终极局，猛攻队倾巢而出",
-      cfg: { w: 34, h: 22, seconds: 360, extractMs: 8000, obs: [16, 22], tiers: [6, 6, 6, 6, 5, 5, 5, 5, 5, 5], total: [17, 21], patrols: [5, 6], radius: [3, 4] } },
+      cfg: { w: 34, h: 22, seconds: 360, extractMs: 8000, obs: [16, 22], tiers: [6, 6, 6, 6, 5, 5, 5, 5, 5, 5], total: [17, 21], patrols: [5, 6], radius: [3, 4], bag: [8, 5], safe: [3, 3] } },
+    { id: "valley_fire", name: "长弓溪谷·火烧", desc: "版本活动图：火线穿行，肥箱遍地，背包扩容",
+      cfg: { w: 26, h: 17, seconds: 330, extractMs: 6000, obs: [12, 16], tiers: [6, 6, 6, 6, 5, 5, 5, 5, 5], total: [15, 18], patrols: [3, 4], radius: [3, 4], bag: [8, 5], safe: [4, 3] } },
+    { id: "dam_flood", name: "零号大坝·水淹", desc: "水淹版本：故图重游，水下肥货管够",
+      cfg: { w: 24, h: 16, seconds: 330, extractMs: 6000, obs: [10, 14], tiers: [6, 6, 6, 5, 5, 5, 5, 5, 5, 5], total: [14, 17], patrols: [3, 4], radius: [3, 4], bag: [8, 6], safe: [4, 3] } },
+    { id: "space2", name: "航天基地2.0", desc: "焕新终章：码头新战区，顶配背包安全箱",
+      cfg: { w: 32, h: 20, seconds: 360, extractMs: 8000, obs: [16, 22], tiers: [6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5], total: [17, 21], patrols: [5, 6], radius: [3, 4], bag: [8, 6], safe: [4, 4] } },
   ];
   const DEFAULT_CFG = LEVELS[1].cfg;
 

@@ -402,14 +402,14 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .raid-bag h3 { font-size: 14px; color: var(--ink); margin-bottom: 8px; }
 .raid-bag h3 small { color: var(--ink-soft); font-weight: 400; margin-left: 6px; font-size: 11px; }
 .bag-grid {
-  position: relative; width: calc(var(--bagcell) * 6); height: calc(var(--bagcell) * 4);
+  position: relative; width: calc(var(--bagcell) * var(--bw, 6)); height: calc(var(--bagcell) * var(--bh, 4));
   background: var(--bg-deep); border: 1px solid var(--line); border-radius: var(--radius-sm);
   background-image:
     linear-gradient(to right, var(--line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--line) 1px, transparent 1px);
   background-size: var(--bagcell) var(--bagcell);
 }
-.bag-grid.small { width: calc(var(--bagcell) * 2); height: calc(var(--bagcell) * 2); border-color: var(--orange-deep); }
+.bag-grid.small { border-color: var(--orange-deep); }
 .bag-item {
   position: absolute; border-radius: 6px; cursor: pointer; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -494,7 +494,7 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
 .rp-bags .raid-bag { margin-bottom: 12px; }
 .rp-bags .raid-bag h3 { font-size: 13px; }
 .rp-bag-value { font-size: 14px; font-weight: 800; color: var(--orange); text-align: right; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
-.rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px auto 0; max-width: calc(var(--bagcell) * 6 + 4px); }
+.rp-bag-tip { font-size: 11px; color: var(--ink-soft); text-align: center; margin: 2px auto 0; max-width: calc(var(--bagcell) * var(--bw, 6) + 4px); }
 
 /* 背包浮层（Tab/ESC 呼出） */
 .bag-panel { max-width: 560px; }
