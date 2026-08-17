@@ -467,7 +467,7 @@ ok("鼠鼠摸金：多种子地图全连通（出生点可达所有容器与撤�
   }
 });
 
-ok("鼠鼠摸金：四关地图生成合法（尺寸/难度参数生效、巡逻不贴撤离点、关卡互不相同）", () => {
+ok("鼠鼠摸金：全关卡地图生成合法（尺寸/难度参数生效、巡逻不贴撤离点、关卡互不相同）", () => {
   DFR.LEVELS.forEach((lv, i) => {
     const map = DFR.generateRaid(DFG.hash32("df-raid-level:" + lv.id), DF_LOOT, lv.cfg);
     assert.strictEqual(map.w, lv.cfg.w, lv.id + " 宽");

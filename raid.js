@@ -43,8 +43,12 @@
       cfg: { w: MAP_W, h: MAP_H, seconds: RAID_SECONDS, extractMs: EXTRACT_MS, obs: [8, 12], tiers: [6, 6, 5, 5, 5, 5], total: [10, 14], patrols: [2, 3], radius: [3, 4] } },
     { id: "brakkesh", name: "巴克什", desc: "大图多巡逻，高价值容器更多",
       cfg: { w: 28, h: 18, seconds: 300, extractMs: 6000, obs: [10, 15], tiers: [6, 6, 5, 5, 5, 5, 5], total: [13, 16], patrols: [3, 4], radius: [3, 4] } },
-    { id: "space", name: "航天基地", desc: "最大图、重兵把守、引导最久",
+    { id: "space", name: "航天基地", desc: "大图、重兵把守、引导最久",
       cfg: { w: 32, h: 20, seconds: 330, extractMs: 7000, obs: [14, 20], tiers: [6, 6, 6, 5, 5, 5, 5, 5], total: [15, 19], patrols: [4, 5], radius: [3, 4] } },
+    { id: "prison", name: "潮汐监狱", desc: "立体监狱：隔断密、巡逻多、视野短，货也更肥",
+      cfg: { w: 30, h: 19, seconds: 330, extractMs: 6000, obs: [18, 24], tiers: [6, 6, 6, 5, 5, 5, 5, 5, 5], total: [15, 18], patrols: [4, 5], radius: [2, 3] } },
+    { id: "az3", name: "AZ3核电站", desc: "最新图：辐射禁区终极局，猛攻队倾巢而出",
+      cfg: { w: 34, h: 22, seconds: 360, extractMs: 8000, obs: [16, 22], tiers: [6, 6, 6, 6, 5, 5, 5, 5, 5, 5], total: [17, 21], patrols: [5, 6], radius: [3, 4] } },
   ];
   const DEFAULT_CFG = LEVELS[1].cfg;
 
