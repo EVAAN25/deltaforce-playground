@@ -818,6 +818,21 @@
     d.ghost.remove();
     d.srcEl.classList.remove("drag-src");
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
+    if (trashEl) trashEl.classList.remove("show");
+  }
+
+  // 丢弃指示：包内物品拖到丢弃区（松手即丢）时，指针旁跟红色垃圾桶徽章
+  let trashEl = null;
+  function updateDragTrash(d, show) {
+    if (!trashEl) {
+      trashEl = document.createElement("div");
+      trashEl.id = "dragTrash";
+      trashEl.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6.5 7l1 13h9l1-13M10 11v5M14 11v5"/></svg>';
+      document.body.appendChild(trashEl);
+    }
+    trashEl.classList.toggle("show", show);
+    if (show) { trashEl.style.left = (d.x + 14) + "px"; trashEl.style.top = (d.y + 14) + "px"; }
+    d.ghost.classList.toggle("discarding", show);
   }
 
   function dragBegin(payload, srcEl, e, off) {
@@ -903,6 +918,8 @@
       t.el.classList.remove("drop-ok", "drop-bad");
       t.el.classList.add(t.ok ? "drop-ok" : "drop-bad");
     }
+    // 空白区且满足丢弃判定：显示红色垃圾桶，幽灵变暗提示松手即丢
+    updateDragTrash(d, d.payload.kind === "bag" && !t && dropOutsidePanel(e));
   }
 
   function dragEnd(e) {
@@ -912,6 +929,7 @@
     Drag.cur = null;
     d.ghost.remove();
     d.srcEl.classList.remove("drag-src");
+    if (trashEl) trashEl.classList.remove("show");
     if (d.target && d.target.el) d.target.el.classList.remove("drop-ok", "drop-bad");
     if (t && t.el) t.el.classList.remove("drop-ok", "drop-bad");
     if (!t) { // 空白落点：仅「拖出整个面板外」才丢弃包内物品；面板内空白 = 不动
