@@ -1353,7 +1353,7 @@
       if (st) { st.classList.remove("death"); void st.offsetWidth; st.classList.add("death"); }
       showFailCard("caught");
     } else {
-      Sfx.bgmPlay(FAIL_SHOW.lost.bgm, FAIL_SHOW.lost.rate); // 迷失：二泉映月
+      if (!run.idleLost) Sfx.bgmPlay(FAIL_SHOW.lost.bgm, FAIL_SHOW.lost.rate); // 迷失：二泉映月；挂机出局不放 BGM，直接弹卡
       showFailCard("lost");
     }
 
