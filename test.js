@@ -478,6 +478,7 @@ ok("鼠鼠摸金：全关卡地图生成合法（尺寸/难度参数生效、巡
     const t6 = map.containers.filter((c) => c.tier === 6).length;
     assert.strictEqual(t6, lv.cfg.tiers.filter((t) => t === 6).length, lv.id + " tier6 数");
     assert(Array.isArray(lv.cfg.bag) && Array.isArray(lv.cfg.safe), lv.id + " 缺 bag/safe 配置");
+    assert(lv.cfg.safe[0] <= 3 && lv.cfg.safe[1] <= 3, lv.id + " 安全箱超 3×3");
     if (i > 0) { // 背包/安全箱格数沿关卡单调不减（梯度）
       const prev = DFR.LEVELS[i - 1].cfg;
       assert(lv.cfg.bag[0] * lv.cfg.bag[1] >= prev.bag[0] * prev.bag[1], lv.id + " 背包梯度倒退");
