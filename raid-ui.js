@@ -1457,8 +1457,9 @@
     el.innerHTML = DFR.LEVELS.map((lv, i) => `
       <button class="raid-level${i === Raid.level ? " active" : ""}" data-i="${i}">
         <b>第${CN[i]}关 · ${lv.name}</b>
-        <span>${lv.desc}</span>
-        <span class="rl-best">${best[lv.id] ? "最佳【" + DFR.fmt(best[lv.id]) + "】" : "——"}</span>
+        <span class="rl-desc">${lv.desc}</span>
+        <span class="rl-stats">${lv.cfg.w}×${lv.cfg.h} · 巡逻 ${lv.cfg.patrols[0]}~${lv.cfg.patrols[1]} 队 · 引导 ${lv.cfg.extractMs / 1000}s</span>
+        <span class="rl-best${best[lv.id] ? "" : " none"}">${best[lv.id] ? "最佳【" + DFR.fmt(best[lv.id]) + "】" : "未开荒"}</span>
       </button>`).join("");
     el.querySelectorAll(".raid-level").forEach((b) =>
       b.addEventListener("click", () => { Raid.level = Number(b.dataset.i); Raid.run = null; render(); }));

@@ -561,19 +561,21 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   .celeb-grade { font-size: 34px; }
 }
 
-/* 关卡选择 */
-.raid-levels { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 0 0 14px; }
+/* 关卡选择：等宽网格，四行结构逐行对齐 */
+.raid-levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 auto 14px; max-width: 760px; }
 .raid-level {
-  display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left;
+  display: flex; flex-direction: column; gap: 4px; align-items: flex-start; text-align: left;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm);
-  padding: 10px 14px; cursor: pointer; color: var(--ink); font-size: 12px; min-width: 160px;
+  padding: 10px 14px; cursor: pointer; color: var(--ink); font-size: 12px; width: 100%;
   transition: border-color .15s, transform .1s;
 }
 .raid-level:hover { transform: translateY(-1px); border-color: var(--orange-deep); }
 .raid-level.active { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange); }
 .raid-level b { font-size: 13px; }
-.raid-level span { color: var(--ink-soft); }
-.raid-level .rl-best { color: var(--g5); font-variant-numeric: tabular-nums; }
+.raid-level .rl-desc { color: var(--ink-soft); min-height: 2.4em; line-height: 1.2; }
+.raid-level .rl-stats { color: var(--ink-soft); opacity: .75; font-size: 11px; font-variant-numeric: tabular-nums; }
+.raid-level .rl-best { color: var(--g5); font-variant-numeric: tabular-nums; margin-top: auto; }
+.raid-level .rl-best.none { color: var(--ink-soft); opacity: .6; }
 .rp-item {
   border-radius: 6px; border: 1px solid; z-index: 1; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -612,7 +614,8 @@ button.btn.ghost { background: var(--card); color: var(--ink); border: 1px solid
   :root { --bagcell: 40px; --rpcell: 34px; }
   .raid-hud { gap: 12px; font-size: 13px; }
   .raid-bags { gap: 12px; }
-  .raid-level { min-width: 130px; padding: 8px 10px; }
+  .raid-levels { grid-template-columns: repeat(2, 1fr); }
+  .raid-level { padding: 8px 10px; }
 }
 
 /* ---------- 触屏适配（pointer: coarse = 手机/平板） ---------- */
