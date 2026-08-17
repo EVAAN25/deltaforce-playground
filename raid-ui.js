@@ -1453,7 +1453,7 @@
     el.classList.toggle("hidden", Raid.mode !== "levels");
     if (Raid.mode !== "levels") return;
     const best = DF_APP.loadJSON("df_raid_level_best", {});
-    const CN = ["一", "二", "三", "四"];
+    const CN = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
     el.innerHTML = DFR.LEVELS.map((lv, i) => `
       <button class="raid-level${i === Raid.level ? " active" : ""}" data-i="${i}">
         <b>第${CN[i]}关 · ${lv.name}</b>
