@@ -65,6 +65,26 @@ main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
   transition: transform .12s, box-shadow .12s, border-color .12s;
 }
 .home-card:hover { transform: translateY(-2px); border-color: var(--orange); box-shadow: var(--shadow-hover); }
+/* 爆款高亮卡（首页鼠鼠摸金）：橙边 + 辉光 + 角标 */
+.home-card.hot {
+  position: relative; overflow: hidden;
+  border-color: var(--orange);
+  box-shadow: var(--shadow-gold), 0 0 0 3px rgba(224, 138, 60, .16), 0 0 22px rgba(224, 138, 60, .14);
+}
+.home-card.hot:hover { box-shadow: var(--shadow-hover), 0 0 0 3px rgba(224, 138, 60, .3), 0 0 30px rgba(224, 138, 60, .22); }
+.hot-badge {
+  position: absolute; top: 10px; right: 10px; z-index: 2;
+  font-size: 11px; font-weight: 700; letter-spacing: 3px; line-height: 1; text-indent: 1.5px;
+  color: #1a1206; background: linear-gradient(135deg, #f2a54f, var(--orange) 55%, var(--orange-deep));
+  padding: 6px 9px; border-radius: 6px;
+  box-shadow: 0 2px 0 var(--orange-deep), 0 0 12px rgba(224, 138, 60, .5);
+  animation: hotpulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes hotpulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
 .hc-emoji {
   font-size: 30px; width: 54px; height: 54px; flex: none;
   display: flex; align-items: center; justify-content: center;
