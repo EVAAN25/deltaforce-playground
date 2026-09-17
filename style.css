@@ -58,22 +58,54 @@ main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
 /* ---------- 首页 ---------- */
 .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .home-card {
-  display: flex; gap: 12px; align-items: center;
+  position: relative;
+  display: flex; flex-direction: column;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px 16px; text-decoration: none; color: var(--ink);
+  padding: 18px 18px 14px; text-decoration: none; color: var(--ink);
   box-shadow: var(--shadow-card);
-  transition: transform .12s, box-shadow .12s, border-color .12s;
+  transition: transform .15s, box-shadow .15s, border-color .15s;
 }
-.home-card:hover { transform: translateY(-2px); border-color: var(--orange); box-shadow: var(--shadow-hover); }
-/* 爆款高亮卡（首页鼠鼠摸金）：橙边 + 辉光 + 角标 */
+.home-card:hover { transform: translateY(-3px); border-color: var(--orange); box-shadow: var(--shadow-hover); }
+.hc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.hc-emoji {
+  font-size: 20px; width: 40px; height: 40px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-deep); border-radius: 10px; border: 1px solid var(--olive-deep);
+}
+.hc-no {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; letter-spacing: .18em; color: var(--ink-soft); opacity: .65;
+}
+.hc-body { flex: 1; }
+.home-card h2 { font-size: 17px; margin-bottom: 6px; letter-spacing: .02em; }
+.home-card p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.65; }
+.hc-go {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; letter-spacing: .22em; color: var(--olive);
+  transition: color .15s;
+}
+.hc-go .arr { transition: transform .15s; }
+.home-card:hover .hc-go { color: var(--orange); }
+.home-card:hover .hc-go .arr { transform: translateX(5px); }
+
+/* 爆款主打卡（首页鼠鼠摸金）：整行宽 + 橙边辉光 + 角标 */
 .home-card.hot {
-  position: relative; overflow: hidden;
+  grid-column: 1 / -1;
+  flex-direction: row; align-items: center; gap: 16px;
+  padding: 22px 20px; overflow: hidden;
   border-color: var(--orange);
+  background: linear-gradient(120deg, var(--card-hi), var(--card) 55%);
   box-shadow: var(--shadow-gold), 0 0 0 3px rgba(224, 138, 60, .16), 0 0 22px rgba(224, 138, 60, .14);
 }
 .home-card.hot:hover { box-shadow: var(--shadow-hover), 0 0 0 3px rgba(224, 138, 60, .3), 0 0 30px rgba(224, 138, 60, .22); }
+.home-card.hot .hc-emoji { width: 56px; height: 56px; font-size: 28px; border-radius: 12px; border-width: 2px; }
+.home-card.hot .hc-body { display: flex; flex-direction: column; }
+.home-card.hot h2 { font-size: 19px; }
+.home-card.hot .hc-go { margin-top: 10px; padding-top: 0; border-top: none; justify-content: flex-start; gap: 10px; }
 .hot-badge {
-  position: absolute; top: 10px; right: 10px; z-index: 2;
+  position: absolute; top: 12px; right: 12px; z-index: 2;
   font-size: 11px; font-weight: 700; letter-spacing: 3px; line-height: 1; text-indent: 1.5px;
   color: #1a1206; background: linear-gradient(135deg, #f2a54f, var(--orange) 55%, var(--orange-deep));
   padding: 6px 9px; border-radius: 6px;
@@ -85,19 +117,16 @@ main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
 }
-.hc-emoji {
-  font-size: 30px; width: 54px; height: 54px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg-deep); border-radius: 12px; border: 2px solid var(--olive-deep);
-}
-.home-card h2 { font-size: 18px; margin-bottom: 4px; }
-.home-card p { font-size: 13px; color: var(--ink-soft); line-height: 1.5; }
 .dot {
   display: inline-block; width: 9px; height: 9px; border-radius: 50%;
   background: #3a4150; margin-left: 8px; vertical-align: 2px;
 }
 .dot.done { background: var(--green); box-shadow: 0 0 0 3px rgba(95, 174, 99, .25); }
 .home-note { margin-top: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+@media (max-width: 560px) {
+  .home-card.hot { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .home-card.hot .hc-go { align-self: stretch; justify-content: space-between; }
+}
 
 /* ---------- 游戏通用 ---------- */
 .game-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
