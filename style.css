@@ -55,57 +55,47 @@ body {
 main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
 .hidden { display: none !important; }
 
-/* ---------- 首页 ---------- */
-.home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.home-card {
-  position: relative;
-  display: flex; flex-direction: column;
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 18px 18px 14px; text-decoration: none; color: var(--ink);
-  box-shadow: var(--shadow-card);
-  transition: transform .15s, box-shadow .15s, border-color .15s;
-}
-.home-card:hover { transform: translateY(-3px); border-color: var(--orange); box-shadow: var(--shadow-hover); }
-.hc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.hc-emoji {
-  font-size: 20px; width: 40px; height: 40px; flex: none;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--bg-deep); border-radius: 10px; border: 1px solid var(--olive-deep);
-}
-.hc-no {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px; letter-spacing: .18em; color: var(--ink-soft); opacity: .65;
-}
-.hc-body { flex: 1; }
-.home-card h2 { font-size: 17px; margin-bottom: 6px; letter-spacing: .02em; }
-.home-card p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.65; }
-.hc-go {
-  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
-  display: flex; align-items: center; justify-content: space-between;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px; letter-spacing: .22em; color: var(--olive);
-  transition: color .15s;
-}
-.hc-go .arr { transition: transform .15s; }
-.home-card:hover .hc-go { color: var(--orange); }
-.home-card:hover .hc-go .arr { transform: translateX(5px); }
+/* ---------- 首页：主打横幅 + 编号索引列表 ---------- */
+.home-grid { display: block; }
 
-/* 爆款主打卡（首页鼠鼠摸金）：整行宽 + 橙边辉光 + 角标 */
+/* 主打横幅（鼠鼠摸金）：大排印 + 幽灵序号 + 数据行 */
 .home-card.hot {
-  grid-column: 1 / -1;
-  flex-direction: row; align-items: center; gap: 16px;
-  padding: 22px 20px; overflow: hidden;
-  border-color: var(--orange);
-  background: linear-gradient(120deg, var(--card-hi), var(--card) 55%);
-  box-shadow: var(--shadow-gold), 0 0 0 3px rgba(224, 138, 60, .16), 0 0 22px rgba(224, 138, 60, .14);
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 28px;
+  margin-bottom: 34px; padding: 34px 34px 28px;
+  text-decoration: none; color: var(--ink);
+  background:
+    radial-gradient(120% 180% at 88% -20%, rgba(224, 138, 60, .16), transparent 55%),
+    linear-gradient(120deg, var(--card-hi), var(--card) 60%);
+  border: 1px solid var(--orange); border-radius: var(--radius);
+  box-shadow: var(--shadow-gold), 0 0 26px rgba(224, 138, 60, .12);
+  transition: transform .15s, box-shadow .15s;
 }
-.home-card.hot:hover { box-shadow: var(--shadow-hover), 0 0 0 3px rgba(224, 138, 60, .3), 0 0 30px rgba(224, 138, 60, .22); }
-.home-card.hot .hc-emoji { width: 56px; height: 56px; font-size: 28px; border-radius: 12px; border-width: 2px; }
-.home-card.hot .hc-body { display: flex; flex-direction: column; }
-.home-card.hot h2 { font-size: 19px; }
-.home-card.hot .hc-go { margin-top: 10px; padding-top: 0; border-top: none; justify-content: flex-start; gap: 10px; }
+.home-card.hot:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover), 0 0 34px rgba(224, 138, 60, .2); }
+.hot-main { flex: 1; min-width: 0; }
+.hot-kicker {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; letter-spacing: .3em; color: var(--orange); margin-bottom: 14px;
+}
+.home-card.hot h2 { font-size: 30px; font-weight: 700; letter-spacing: .04em; margin-bottom: 10px; }
+.home-card.hot p { font-size: 13.5px; color: var(--ink-soft); line-height: 1.8; max-width: 460px; }
+.hot-stats {
+  display: flex; flex-wrap: wrap; gap: 0; margin-top: 18px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px; letter-spacing: .12em; color: var(--olive);
+}
+.hot-stats span { padding: 0 14px; border-left: 1px solid var(--line); }
+.hot-stats span:first-child { padding-left: 0; border-left: none; }
+.hot-no {
+  flex: none; align-self: flex-end;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 130px; font-weight: 700; line-height: .78;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(224, 138, 60, .35);
+  user-select: none;
+}
 .hot-badge {
-  position: absolute; top: 12px; right: 12px; z-index: 2;
+  position: absolute; top: 14px; right: 14px; z-index: 2;
   font-size: 11px; font-weight: 700; letter-spacing: 3px; line-height: 1; text-indent: 1.5px;
   color: #1a1206; background: linear-gradient(135deg, #f2a54f, var(--orange) 55%, var(--orange-deep));
   padding: 6px 9px; border-radius: 6px;
@@ -117,15 +107,47 @@ main { width: 100%; max-width: 720px; padding: 16px 12px 40px; flex: 1; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.1); }
 }
+
+/* 索引行：编号 + 标题/英文小标/描述 + 箭头，细分隔线，无盒子 */
+.home-card {
+  display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 20px;
+  padding: 22px 10px; text-decoration: none; color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  transition: background .15s, padding-left .15s;
+}
+.home-card.hot + .home-card { border-top: 1px solid var(--line); }
+.home-card:hover { background: rgba(255, 255, 255, .025); padding-left: 18px; }
+.hc-no {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; letter-spacing: .15em; color: var(--ink-soft); opacity: .65;
+}
+.home-card h2 { font-size: 17px; font-weight: 600; letter-spacing: .03em; }
+.hc-en {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px; letter-spacing: .22em; color: var(--olive);
+  margin-left: 12px; vertical-align: 2px;
+}
+.home-card p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.65; margin-top: 6px; max-width: 520px; }
+.hc-arrow {
+  font-size: 18px; color: var(--ink-soft);
+  transition: transform .15s, color .15s;
+}
+.home-card:hover .hc-arrow { color: var(--orange); transform: translateX(6px); }
+
 .dot {
   display: inline-block; width: 9px; height: 9px; border-radius: 50%;
   background: #3a4150; margin-left: 8px; vertical-align: 2px;
 }
 .dot.done { background: var(--green); box-shadow: 0 0 0 3px rgba(95, 174, 99, .25); }
-.home-note { margin-top: 16px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+.home-note { margin-top: 20px; text-align: center; color: var(--ink-soft); font-size: 13px; }
+
 @media (max-width: 560px) {
-  .home-card.hot { flex-direction: column; align-items: flex-start; gap: 14px; }
-  .home-card.hot .hc-go { align-self: stretch; justify-content: space-between; }
+  .home-card.hot { flex-direction: column; align-items: flex-start; gap: 18px; padding: 26px 22px 22px; }
+  .home-card.hot h2 { font-size: 25px; }
+  .hot-no { display: none; }
+  .home-card { grid-template-columns: 1fr auto; gap: 12px; }
+  .hc-no { display: none; }
+  .hc-en { display: inline; margin-left: 10px; }
 }
 
 /* ---------- 游戏通用 ---------- */
